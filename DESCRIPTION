@@ -2,7 +2,7 @@ Package: shinypayload
 Type: Package
 Title: Accept POST Data and URL Parameters in Shiny (Same-Port Integration)
 Version: 0.1.0
-Authors@R: person("You", "Dev", email = "you@example.com", role = c("aut","cre"))
+Authors@R: person("Pawan Rama", "Mali", email = "prm@outlook.in", role = c("aut","cre"))
 Description: Handle POST requests on a custom path (e.g., /ingress) inside the same Shiny HTTP server using ui(req) + httpResponse. Expose latest payload as a reactive and provide helpers for query parameters.
 License: MIT + file LICENSE
 Encoding: UTF-8
