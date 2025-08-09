@@ -1,0 +1,38 @@
+# Configuration for pkgdown
+url: https://pawanramamali.github.io/shinypayload/
+
+template:
+  bootstrap: 5
+
+home:
+  title: shinypayload
+  description: Accept POST data and URL parameters in Shiny (same-port integration)
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, tutorials, news]
+    right: [search, github]
+  components:
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/PawanRamaMali/shinypayload
+
+reference:
+- title: "Core Functions"
+  desc: "Main functions for handling POST data in Shiny"
+- contents:
+  - payload_ui
+  - payload_last
+  - params_get  
+  - payload_endpoint_url
+
+articles:
+- title: "Getting Started"
+  navbar: ~
+  contents:
+  - examples
+
+news:
+  releases:
+  - text: "Version 0.1.0"
+    href: https://github.com/PawanRamaMali/shinypayload/releases/tag/v0.1.0

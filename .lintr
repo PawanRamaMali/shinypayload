@@ -1,0 +1,15 @@
+# Configuration for lintr
+linters: linters_with_defaults(
+  # Disable some linters that might be too strict
+  commented_code_linter = NULL,
+  cyclocomp_linter = NULL,
+  line_length_linter = line_length_linter(100),
+  object_usage_linter = NULL,
+  # Enable additional linters
+  trailing_whitespace_linter(),
+  trailing_blank_lines_linter()
+)
+exclusions: list(
+  "R/RcppExports.R",
+  "tests/testthat.R"
+)
