@@ -7,7 +7,6 @@
 [![Codecov test coverage](https://codecov.io/gh/PawanRamaMali/shinypayload/branch/main/graph/badge.svg)](https://codecov.io/gh/PawanRamaMali/shinypayload?branch=main)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![R-Universe](https://pawanramamali.r-universe.dev/badges/shinypayload)](https://pawanramamali.r-universe.dev/shinypayload)
 [![GitHub stars](https://img.shields.io/github/stars/PawanRamaMali/shinypayload?style=social)](https://github.com/PawanRamaMali/shinypayload/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/PawanRamaMali/shinypayload)](https://github.com/PawanRamaMali/shinypayload/issues)
 [![GitHub last commit](https://img.shields.io/github/last-commit/PawanRamaMali/shinypayload)](https://github.com/PawanRamaMali/shinypayload/commits/main)
