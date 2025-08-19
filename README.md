@@ -16,7 +16,7 @@
 
 > **Bring data _into_ Shiny on the same port** 🚀
 
-Accept **POSTed JSON/form data** and **URL query parameters**, expose them as **reactives**, and keep your normal Shiny UI. No second server, no extra port, no complex setup.
+Seamlessly integrate **POST requests** and **query parameters** into your existing Shiny apps as **reactive values**. Zero configuration - works with your current UI on the same port.
 
 ## ✨ Key Features
 
