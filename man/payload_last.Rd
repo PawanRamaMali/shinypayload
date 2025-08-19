@@ -23,7 +23,7 @@ Get a reactive that polls for new payload data
 \dontrun{
 server <- function(input, output, session) {
   latest_data <- payload_last("/data", session)
-  
+
   observeEvent(latest_data(), {
     data <- latest_data()
     if (!is.null(data)) {

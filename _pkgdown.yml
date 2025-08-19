@@ -3,36 +3,57 @@ url: https://pawanramamali.github.io/shinypayload/
 
 template:
   bootstrap: 5
+  bootswatch: flatly
+  bslib:
+    primary: "#0073e6"
+    secondary: "#6c757d"
+
+development:
+  mode: auto
 
 home:
-  title: shinypayload
-  description: Accept POST data and URL parameters in Shiny (same-port integration)
+  title: "shinypayload • Accept POST Data in Shiny"
+  description: >
+    Accept POSTed JSON/form data and URL query params in Shiny applications.
+    Handle POST requests on the same port as your Shiny UI with reactive data integration.
 
 navbar:
+  title: "shinypayload"
   structure:
-    left:  [intro, reference, articles, tutorials, news]
+    left:  [intro, reference, articles, news]
     right: [search, github]
   components:
     github:
       icon: fab fa-github fa-lg
       href: https://github.com/PawanRamaMali/shinypayload
+      aria-label: GitHub
 
 reference:
 - title: "Core Functions"
   desc: "Main functions for handling POST data in Shiny"
-- contents:
+  contents:
   - payload_ui
   - payload_last
   - params_get  
   - payload_endpoint_url
-
-articles:
-- title: "Getting Started"
-  navbar: ~
-  contents:
-  - examples
+  - setup_payload_endpoint
 
 news:
   releases:
+  - text: "Development version"
+    href: https://github.com/PawanRamaMali/shinypayload/blob/main/NEWS.md
   - text: "Version 0.1.0"
     href: https://github.com/PawanRamaMali/shinypayload/releases/tag/v0.1.0
+
+footer:
+  structure:
+    left: [built_with, package]
+    right: [github, issues]
+  components:
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/PawanRamaMali/shinypayload
+      aria-label: GitHub
+    issues:
+      text: "Report issues"
+      href: https://github.com/PawanRamaMali/shinypayload/issues
