@@ -1,5 +1,11 @@
 # shinypayload
 
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/PawanRamaMali/shinypayload/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/PawanRamaMali/shinypayload/actions/workflows/R-CMD-check.yml)
+[![test-coverage](https://github.com/PawanRamaMali/shinypayload/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/PawanRamaMali/shinypayload/actions/workflows/test-coverage.yml)
+[![Codecov test coverage](https://codecov.io/gh/PawanRamaMali/shinypayload/branch/main/graph/badge.svg)](https://codecov.io/gh/PawanRamaMali/shinypayload?branch=main)
+<!-- badges: end -->
+
 **Bring data *into* Shiny on the same port.**
 
 Accept **POSTed JSON/form data** and **URL query params**, expose them as **reactives**, and keep your normal Shiny UI. No second server, no extra port.
