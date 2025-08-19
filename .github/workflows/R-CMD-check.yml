@@ -65,15 +65,15 @@ jobs:
             any::roxygen2
           needs: check
 
-      - name: Run styler to check code style
+      - name: Check code style with styler
         run: |
-          # Check if styling would change files (non-failing check)
           violations <- styler::style_pkg(dry = "on", include_roxygen_examples = FALSE)
+          cat("Code style check completed.\n")
           if (length(violations) > 0) {
-            cat("Code style violations found (informational):\n")
+            cat("Found styling violations (informational only):\n")
             print(violations)
           } else {
-            cat("Code style is good!\n")
+            cat("All files properly styled.\n")
           }
         shell: Rscript {0}
         continue-on-error: true
