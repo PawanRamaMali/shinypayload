@@ -39,8 +39,11 @@ jobs:
       - name: Check for style issues
         run: |
           # Check if styler would make changes
-          if ! styler::style_pkg(dry = "on") == ""; then
-            echo "Code style issues found. Please run styler::style_pkg() to fix."
-            exit 1
-          fi
+          violations <- styler::style_pkg(dry = "on", include_roxygen_examples = FALSE)
+          if (length(violations) > 0) {
+            cat("Code style issues found. Please run styler::style_pkg() to fix.\n")
+            quit(status = 1)
+          } else {
+            cat("All files properly styled.\n")
+          }
         shell: Rscript {0}
