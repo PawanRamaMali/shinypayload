@@ -9,8 +9,7 @@ Encoding: UTF-8
 Depends: R (>= 4.1)
 Imports:
     shiny (>= 1.7.4),
-    jsonlite,
-    utils
+    jsonlite
 Suggests: 
     testthat (>= 3.0.0),
     covr,

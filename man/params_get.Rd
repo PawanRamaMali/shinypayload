@@ -17,3 +17,24 @@ Named list
 \description{
 Get URL query parameters in Shiny
 }
+\examples{
+\dontrun{
+server <- function(input, output, session) {
+  # Get all query parameters
+  all_params <- params_get(session)
+  
+  # Get specific parameters
+  user_params <- params_get(session, keys = c("user_id", "token"))
+  
+  # Use in outputs
+  output$params_display <- renderText({
+    params <- params_get(session)
+    if (length(params) > 0) {
+      paste("Parameters:", jsonlite::toJSON(params))
+    } else {
+      "No parameters provided"
+    }
+  })
+}
+}
+}

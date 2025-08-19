@@ -3,21 +3,21 @@
 test_that("payload_ui creates a function", {
   base_ui <- fluidPage(h1("Test"))
   ui <- payload_ui(base_ui, path = "/test", token = "secret")
-  
+
   expect_true(is.function(ui))
   expect_equal(attr(ui, "http_methods_supported"), c("GET", "POST"))
 })
 
 test_that("payload_ui validates path parameter", {
   base_ui <- fluidPage(h1("Test"))
-  
+
   # Valid path
   expect_silent(payload_ui(base_ui, path = "/test"))
-  
+
   # Invalid paths
-  expect_error(payload_ui(base_ui, path = "test"))  # No leading slash
-  expect_error(payload_ui(base_ui, path = ""))      # Empty path
-  expect_error(payload_ui(base_ui, path = c("/a", "/b")))  # Multiple paths
+  expect_error(payload_ui(base_ui, path = "test")) # No leading slash
+  expect_error(payload_ui(base_ui, path = "")) # Empty path
+  expect_error(payload_ui(base_ui, path = c("/a", "/b"))) # Multiple paths
 })
 
 test_that("payload_ui handles different UI types", {
@@ -25,12 +25,12 @@ test_that("payload_ui handles different UI types", {
   static_ui <- fluidPage(h1("Static"))
   ui1 <- payload_ui(static_ui, path = "/test")
   expect_true(is.function(ui1))
-  
+
   # Function UI (no parameters)
   func_ui_no_params <- function() fluidPage(h1("Function"))
   ui2 <- payload_ui(func_ui_no_params, path = "/test")
   expect_true(is.function(ui2))
-  
+
   # Function UI (with req parameter)
   func_ui_with_req <- function(req) fluidPage(h1("Function with req"))
   ui3 <- payload_ui(func_ui_with_req, path = "/test")
@@ -40,7 +40,7 @@ test_that("payload_ui handles different UI types", {
 test_that("payload_ui processes POST requests correctly", {
   base_ui <- fluidPage(h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "test-token")
-  
+
   # Mock GET request - should return UI
   get_req <- list(
     REQUEST_METHOD = "GET",
@@ -48,7 +48,7 @@ test_that("payload_ui processes POST requests correctly", {
   )
   result <- ui(get_req)
   expect_true(inherits(result, "shiny.tag.list") || inherits(result, "shiny.tag"))
-  
+
   # Mock POST request to different path - should return UI
   post_req_wrong_path <- list(
     REQUEST_METHOD = "POST",
@@ -61,7 +61,7 @@ test_that("payload_ui processes POST requests correctly", {
 test_that("payload_ui handles authentication", {
   base_ui <- fluidPage(h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "secret")
-  
+
   # Mock POST request without token - should return 401
   post_req_no_auth <- list(
     REQUEST_METHOD = "POST",
@@ -70,7 +70,7 @@ test_that("payload_ui handles authentication", {
     HEADERS = list(),
     rook.input = list(read = function() NULL)
   )
-  
+
   result <- ui(post_req_no_auth)
   expect_true(is.list(result))
   expect_equal(result$status, 401L)
@@ -79,7 +79,7 @@ test_that("payload_ui handles authentication", {
 test_that("payload_ui handles POST requests with valid token", {
   base_ui <- fluidPage(h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "secret")
-  
+
   # Mock successful POST request
   post_req_valid <- list(
     REQUEST_METHOD = "POST",
@@ -90,7 +90,7 @@ test_that("payload_ui handles POST requests with valid token", {
     HTTP_CONTENT_TYPE = "application/json",
     rook.input = list(read = function() charToRaw('{"test": "data"}'))
   )
-  
+
   # Add a counter to simulate multiple reads
   read_count <- 0
   post_req_valid$rook.input$read <- function() {
@@ -101,7 +101,7 @@ test_that("payload_ui handles POST requests with valid token", {
       return(NULL)
     }
   }
-  
+
   result <- ui(post_req_valid)
   expect_true(is.list(result))
   expect_equal(result$status, 200L)
