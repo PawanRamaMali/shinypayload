@@ -15,7 +15,6 @@ Imports:
 Suggests: 
     testthat (>= 3.0.0),
     covr,
-    lintr,
     styler,
     roxygen2,
     DT

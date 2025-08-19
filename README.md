@@ -1,9 +1,10 @@
-# shinypayload <img src="https://raw.githubusercontent.com/rstudio/hex-stickers/master/PNG/shiny.png" align="right" height="139" />
+# shinypayload <img src="https://raw.githubusercontent.com/rstudio/hex-stickers/master/PNG/shiny.png" align="right" height="139" alt="Shiny hex logo" />
 
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/shinypayload)](https://CRAN.R-project.org/package=shinypayload)
 [![R-CMD-check](https://github.com/PawanRamaMali/shinypayload/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/PawanRamaMali/shinypayload/actions/workflows/R-CMD-check.yml)
 [![test-coverage](https://github.com/PawanRamaMali/shinypayload/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/PawanRamaMali/shinypayload/actions/workflows/test-coverage.yml)
+[![pkgdown](https://github.com/PawanRamaMali/shinypayload/actions/workflows/pkgdown.yml/badge.svg)](https://github.com/PawanRamaMali/shinypayload/actions/workflows/pkgdown.yml)
 [![Codecov test coverage](https://codecov.io/gh/PawanRamaMali/shinypayload/branch/main/graph/badge.svg)](https://codecov.io/gh/PawanRamaMali/shinypayload?branch=main)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

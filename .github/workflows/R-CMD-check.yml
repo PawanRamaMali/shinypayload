@@ -62,7 +62,6 @@ jobs:
         with:
           extra-packages: |
             any::styler
-            any::lintr
             any::roxygen2
           needs: check
 
@@ -78,9 +77,3 @@ jobs:
           }
         shell: Rscript {0}
         continue-on-error: true
-
-      - name: Check basic code quality
-        run: |
-          # Basic package structure checks
-          cat("Package structure looks good!\n")
-        shell: Rscript {0}
