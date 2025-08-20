@@ -5,7 +5,6 @@
 [![R-CMD-check](https://github.com/PawanRamaMali/shinypayload/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/PawanRamaMali/shinypayload/actions/workflows/R-CMD-check.yml)
 [![test-coverage](https://github.com/PawanRamaMali/shinypayload/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/PawanRamaMali/shinypayload/actions/workflows/test-coverage.yml)
 [![pkgdown](https://github.com/PawanRamaMali/shinypayload/actions/workflows/pkgdown.yml/badge.svg)](https://github.com/PawanRamaMali/shinypayload/actions/workflows/pkgdown.yml)
-[![Codecov test coverage](https://codecov.io/gh/PawanRamaMali/shinypayload/branch/main/graph/badge.svg)](https://codecov.io/gh/PawanRamaMali/shinypayload?branch=main)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub stars](https://img.shields.io/github/stars/PawanRamaMali/shinypayload?style=social)](https://github.com/PawanRamaMali/shinypayload/stargazers)
@@ -288,7 +287,7 @@ This project is licensed under the [MIT License](LICENSE) - see the LICENSE file
 
 - 📖 **Documentation**: [Package website](https://pawanramamali.github.io/shinypayload/)
 - 🐛 **Bug reports**: [GitHub Issues](https://github.com/PawanRamaMali/shinypayload/issues)
-- 💬 **Questions**: [GitHub Discussions](https://github.com/PawanRamaMali/shinypayload/discussions)
+- 💬 **Questions**: [GitHub Issues](https://github.com/PawanRamaMali/shinypayload/issues)
 - 📧 **Email**: prm@outlook.in
 
 ---
