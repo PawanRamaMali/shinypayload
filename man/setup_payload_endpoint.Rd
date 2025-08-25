@@ -13,6 +13,10 @@ setup_payload_endpoint(path = "/ingress", session, token = NULL)
 
 \item{token}{Optional authentication token for POST requests}
 }
+\value{
+No return value, called for side effects. Registers a POST endpoint
+handler with the Shiny session that will process incoming requests.
+}
 \description{
 Setup POST endpoint in server function - MUST be called in server
 }

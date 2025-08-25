@@ -12,13 +12,16 @@ params_get(session, keys = NULL)
 \item{keys}{Optional character vector of keys to pull; if NULL return all}
 }
 \value{
-Named list
+A named list containing the URL query parameters. If \code{keys} is
+specified, only those parameters are returned. If no parameters exist or
+the specified keys are not found, returns an empty list or list with
+\code{NULL} values respectively.
 }
 \description{
 Get URL query parameters in Shiny
 }
 \examples{
-\dontrun{
+if (interactive()) {
 server <- function(input, output, session) {
   # Get all query parameters
   all_params <- params_get(session)

@@ -14,13 +14,15 @@ payload_ui(base_ui, path = "/ingress", token = NULL)
 \item{token}{Optional authentication token for POST requests}
 }
 \value{
-A function(req) that handles both regular Shiny UI and POST requests
+A function that takes a request object and returns either the regular UI
+(for GET requests) or an HTTP response (for POST requests). This function
+should be passed to shinyApp() as the ui parameter.
 }
 \description{
 Wrap an existing UI with an integrated POST handler on the same port
 }
 \examples{
-\dontrun{
+if (interactive()) {
 ui <- payload_ui(
   fluidPage(h1("My App")),
   path = "/data",

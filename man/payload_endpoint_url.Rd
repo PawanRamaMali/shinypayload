@@ -12,13 +12,15 @@ payload_endpoint_url(session, path = "/ingress")
 \item{path}{The URL path (default "/ingress")}
 }
 \value{
-Character string with the full URL
+A character string containing the complete URL (including protocol,
+hostname, port, and path) where POST requests should be sent to reach
+this endpoint.
 }
 \description{
 Generate the absolute URL for the payload endpoint
 }
 \examples{
-\dontrun{
+if (interactive()) {
 server <- function(input, output, session) {
   url <- payload_endpoint_url(session, "/data")
   print(paste("Send POST requests to:", url))

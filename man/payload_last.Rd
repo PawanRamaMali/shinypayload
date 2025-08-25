@@ -14,13 +14,16 @@ payload_last(path = "/ingress", session, intervalMillis = 300)
 \item{intervalMillis}{Polling interval in milliseconds (default 300)}
 }
 \value{
-A reactive expression that returns list(payload=..., meta=...) or NULL
+A reactive expression (class "reactive") that returns a list with two
+elements when new data is available: \code{payload} (the parsed request body)
+and \code{meta} (metadata including timestamp, remote address, headers, etc.),
+or \code{NULL} if no data has been received yet.
 }
 \description{
 Get a reactive that polls for new payload data
 }
 \examples{
-\dontrun{
+if (interactive()) {
 server <- function(input, output, session) {
   latest_data <- payload_last("/data", session)
 

@@ -115,10 +115,12 @@
 #' @param base_ui The original UI (tagList, fluidPage, or a function(req) returning UI)
 #' @param path The URL path to handle POST requests (default "/ingress")
 #' @param token Optional authentication token for POST requests
-#' @return A function(req) that handles both regular Shiny UI and POST requests
+#' @return A function that takes a request object and returns either the regular UI 
+#'   (for GET requests) or an HTTP response (for POST requests). This function 
+#'   should be passed to shinyApp() as the ui parameter.
 #' @export
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' ui <- payload_ui(
 #'   fluidPage(h1("My App")),
 #'   path = "/data",
@@ -241,6 +243,8 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
 #' @param path The URL path to handle POST requests (default "/ingress")
 #' @param session The Shiny session object
 #' @param token Optional authentication token for POST requests
+#' @return No return value, called for side effects. Registers a POST endpoint
+#'   handler with the Shiny session that will process incoming requests.
 #' @export
 setup_payload_endpoint <- function(path = "/ingress", session, token = NULL) {
   stopifnot(!missing(session))
@@ -298,10 +302,13 @@ setup_payload_endpoint <- function(path = "/ingress", session, token = NULL) {
 #' @param path The URL path used in payload_ui() (default "/ingress")
 #' @param session The Shiny session object
 #' @param intervalMillis Polling interval in milliseconds (default 300)
-#' @return A reactive expression that returns list(payload=..., meta=...) or NULL
+#' @return A reactive expression (class "reactive") that returns a list with two 
+#'   elements when new data is available: \code{payload} (the parsed request body) 
+#'   and \code{meta} (metadata including timestamp, remote address, headers, etc.), 
+#'   or \code{NULL} if no data has been received yet.
 #' @export
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' server <- function(input, output, session) {
 #'   latest_data <- payload_last("/data", session)
 #'
@@ -334,10 +341,12 @@ payload_last <- function(path = "/ingress", session, intervalMillis = 300) {
 #' Generate the absolute URL for the payload endpoint
 #' @param session The Shiny session object
 #' @param path The URL path (default "/ingress")
-#' @return Character string with the full URL
+#' @return A character string containing the complete URL (including protocol, 
+#'   hostname, port, and path) where POST requests should be sent to reach 
+#'   this endpoint.
 #' @export
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' server <- function(input, output, session) {
 #'   url <- payload_endpoint_url(session, "/data")
 #'   print(paste("Send POST requests to:", url))
