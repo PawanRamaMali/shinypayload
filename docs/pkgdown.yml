@@ -2,4 +2,7 @@ pandoc: '3.3'
 pkgdown: 2.1.1
 pkgdown_sha: ~
 articles: {}
-last_built: 2025-08-09T22:09Z
+last_built: 2025-08-30T07:29Z
+urls:
+  reference: https://pawanramamali.github.io/shinypayload/reference
+  article: https://pawanramamali.github.io/shinypayload/articles

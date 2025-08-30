@@ -7,6 +7,8 @@ template:
   bslib:
     primary: "#0073e6"
     secondary: "#6c757d"
+  
+favicon: man/figures/logo.png
 
 development:
   mode: auto

@@ -1,4 +1,4 @@
-# shinypayload <img src="https://raw.githubusercontent.com/rstudio/hex-stickers/master/PNG/shiny.png" align="right" height="139" alt="Shiny hex logo" />
+# shinypayload <img src="man/figures/logo.png" align="right" height="139" alt="shinypayload logo" />
 
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/shinypayload)](https://CRAN.R-project.org/package=shinypayload)
