@@ -32,7 +32,7 @@ Seamlessly integrate **POST requests** and **query parameters** into your existi
 ### Installation
 
 ```r
-# Install from CRAN (when available)
+# Install from CRAN
 install.packages("shinypayload")
 
 # Install development version from GitHub
