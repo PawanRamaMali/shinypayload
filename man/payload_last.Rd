@@ -24,16 +24,16 @@ Get a reactive that polls for new payload data
 }
 \examples{
 if (interactive()) {
-server <- function(input, output, session) {
-  latest_data <- payload_last("/data", session)
+  server <- function(input, output, session) {
+    latest_data <- payload_last("/data", session)
 
-  observeEvent(latest_data(), {
-    data <- latest_data()
-    if (!is.null(data)) {
-      print(data$payload)
-      print(data$meta$timestamp)
-    }
-  })
-}
+    observeEvent(latest_data(), {
+      data <- latest_data()
+      if (!is.null(data)) {
+        print(data$payload)
+        print(data$meta$timestamp)
+      }
+    })
+  }
 }
 }

@@ -23,11 +23,11 @@ Wrap an existing UI with an integrated POST handler on the same port
 }
 \examples{
 if (interactive()) {
-ui <- payload_ui(
-  fluidPage(h1("My App")),
-  path = "/data",
-  token = "secret123"
-)
-shinyApp(ui, server, uiPattern = ".*")
+  ui <- payload_ui(
+    fluidPage(h1("My App")),
+    path = "/data",
+    token = "secret123"
+  )
+  shinyApp(ui, server, uiPattern = ".*")
 }
 }

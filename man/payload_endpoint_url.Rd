@@ -21,9 +21,9 @@ Generate the absolute URL for the payload endpoint
 }
 \examples{
 if (interactive()) {
-server <- function(input, output, session) {
-  url <- payload_endpoint_url(session, "/data")
-  print(paste("Send POST requests to:", url))
-}
+  server <- function(input, output, session) {
+    url <- payload_endpoint_url(session, "/data")
+    print(paste("Send POST requests to:", url))
+  }
 }
 }

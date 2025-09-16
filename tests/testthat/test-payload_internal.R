@@ -122,23 +122,25 @@ test_that("request body parsing handles different content types", {
   expect_equal(parsed_form$age, "30")
   expect_equal(parsed_form$active, "true")
 
-  # Unknown content type - should try JSON first
+  # Text content type - should return as string
   unknown_body <- charToRaw('{"fallback": "json"}')
   req_unknown <- list(
     HTTP_CONTENT_TYPE = "text/plain"
   )
 
   parsed_unknown <- shinypayload:::.parse_request_body(req_unknown, unknown_body)
-  expect_equal(parsed_unknown$fallback, "json")
+  expect_equal(parsed_unknown, '{"fallback": "json"}')
 
-  # Invalid JSON - should return as string
+  # Invalid JSON - should return error object with raw data
   invalid_body <- charToRaw("not valid json")
   req_invalid <- list(
     HTTP_CONTENT_TYPE = "application/json"
   )
 
   parsed_invalid <- shinypayload:::.parse_request_body(req_invalid, invalid_body)
-  expect_equal(parsed_invalid, "not valid json")
+  expect_true(is.list(parsed_invalid))
+  expect_equal(parsed_invalid$error, "Parsing failed")
+  expect_equal(parsed_invalid$raw_data, "not valid json")
 })
 
 test_that("authentication checking works correctly", {
