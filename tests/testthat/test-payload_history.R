@@ -9,7 +9,7 @@ test_that("payload_history_config validates inputs correctly", {
 
   # Should succeed with valid inputs
   expect_silent(payload_history_config(max_items = 50, max_age_hours = 12))
-  expect_silent(payload_history_config(max_items = 1000, max_age_hours = 168))  # 1 week
+  expect_silent(payload_history_config(max_items = 1000, max_age_hours = 168)) # 1 week
 
   # Verify configuration was set
   config <- shinypayload:::.shinypayload_state$config
@@ -54,7 +54,7 @@ test_that("payload history stores and retrieves data correctly", {
   }
 
   history_all <- payload_history("/test/sensor")
-  expect_length(history_all, 6)  # 1 original + 5 new
+  expect_length(history_all, 6) # 1 original + 5 new
 
   # Test with limit
   history_limited <- payload_history("/test/sensor", limit = 3)
@@ -66,13 +66,13 @@ test_that("payload history stores and retrieves data correctly", {
 })
 
 test_that("payload history respects retention policies", {
-  skip_on_ci()  # Time-sensitive test may be flaky in CI
-  skip_on_cran()  # Also skip on CRAN
+  skip_on_ci() # Time-sensitive test may be flaky in CI
+  skip_on_cran() # Also skip on CRAN
   # Clear existing history
   payload_history_clear()
 
   # Set strict retention policy
-  payload_history_config(max_items = 3, max_age_hours = 0.001)  # ~3.6 seconds
+  payload_history_config(max_items = 3, max_age_hours = 0.001) # ~3.6 seconds
 
   # Store multiple payloads
   for (i in 1:5) {
@@ -90,7 +90,7 @@ test_that("payload history respects retention policies", {
 
   # Wait for age-based cleanup (this is approximate)
   # Test with past timestamp instead of sleep
-  past_time <- Sys.time() - 5*3600  # 5 hours ago
+  past_time <- Sys.time() - 5 * 3600 # 5 hours ago
 
   # Add one more item to trigger cleanup
   test_payload <- list(
@@ -119,7 +119,7 @@ test_that("payload_history filters by time correctly", {
     test_payload <- list(
       payload = list(id = i, timestamp = i),
       meta = list(
-        timestamp = base_time + (i * 3600),  # Each payload 1 hour apart
+        timestamp = base_time + (i * 3600), # Each payload 1 hour apart
         method = "POST"
       )
     )
@@ -131,9 +131,9 @@ test_that("payload_history filters by time correctly", {
   expect_length(all_history, 5)
 
   # Filter to last 2 hours
-  since_time <- base_time + (2.5 * 3600)  # 2.5 hours from base
+  since_time <- base_time + (2.5 * 3600) # 2.5 hours from base
   recent_history <- payload_history("/test/time", since = since_time)
-  expect_length(recent_history, 3)  # Should get payloads 3, 4 and 5
+  expect_length(recent_history, 3) # Should get payloads 3, 4 and 5
 
   # Filter to future time (should get nothing)
   future_time <- base_time + (10 * 3600)
@@ -166,7 +166,7 @@ test_that("payload_history_stats provides accurate information", {
       test_payload <- list(
         payload = list(endpoint = endpoint, id = i),
         meta = list(
-          timestamp = base_time + (i * 60),  # Each payload 1 minute apart
+          timestamp = base_time + (i * 60), # Each payload 1 minute apart
           method = "POST"
         )
       )
@@ -176,7 +176,7 @@ test_that("payload_history_stats provides accurate information", {
 
   # Test overall stats
   stats_all <- payload_history_stats()
-  expect_equal(stats_all$total_entries, 9)  # 3 endpoints * 3 payloads
+  expect_equal(stats_all$total_entries, 9) # 3 endpoints * 3 payloads
   expect_length(stats_all$endpoints, 3)
   expect_true(all(endpoints %in% stats_all$endpoints))
   expect_true(stats_all$oldest_timestamp <= stats_all$newest_timestamp)
@@ -219,11 +219,11 @@ test_that("payload_history_clear works correctly", {
   cleared_count <- payload_history_clear("/api/data")
   expect_equal(cleared_count, 3)
   expect_length(payload_history("/api/data"), 0)
-  expect_length(payload_history("/api/logs"), 3)  # Should still exist
+  expect_length(payload_history("/api/logs"), 3) # Should still exist
 
   # Clear all
   total_cleared <- payload_history_clear()
-  expect_equal(total_cleared, 6)  # 2 endpoints * 3 payloads each
+  expect_equal(total_cleared, 6) # 2 endpoints * 3 payloads each
   expect_length(payload_history("/api/logs"), 0)
   expect_length(payload_history("/api/events"), 0)
 })
@@ -275,8 +275,8 @@ test_that("payload history handles edge cases", {
 # Stress test removed - was always skipped
 
 test_that("payload history handles concurrent access simulation", {
-  skip_on_ci()  # Concurrent access simulation may be flaky in CI
-  skip_on_cran()  # Also skip on CRAN
+  skip_on_ci() # Concurrent access simulation may be flaky in CI
+  skip_on_cran() # Also skip on CRAN
   # Clear existing history
   payload_history_clear()
 
@@ -288,7 +288,7 @@ test_that("payload history handles concurrent access simulation", {
   for (i in 1:payload_count) {
     test_payload <- list(
       payload = list(
-        thread_id = i %% 3,  # Simulate 3 different "threads"
+        thread_id = i %% 3, # Simulate 3 different "threads"
         data = paste("payload", i),
         timestamp = Sys.time()
       ),
@@ -311,5 +311,5 @@ test_that("payload history handles concurrent access simulation", {
 
   # Verify unique IDs
   ids <- sapply(history, function(x) x$id)
-  expect_equal(length(unique(ids)), length(ids))  # All IDs should be unique
+  expect_equal(length(unique(ids)), length(ids)) # All IDs should be unique
 })

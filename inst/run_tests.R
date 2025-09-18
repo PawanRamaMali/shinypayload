@@ -48,7 +48,7 @@ if (file.exists("DESCRIPTION")) {
 if (run_tests) {
   cat("\n=== Running Tests ===\n")
   test_results <- devtools::test()
-  
+
   if (any(test_results$failed > 0)) {
     cat("❌ Some tests failed!\n")
     quit(status = 1)
@@ -60,20 +60,20 @@ if (run_tests) {
 # Run test coverage
 if (run_coverage) {
   cat("\n=== Generating Coverage Report ===\n")
-  
+
   coverage <- covr::package_coverage()
-  
+
   cat("Coverage Summary:\n")
   print(coverage)
-  
+
   coverage_percent <- covr::percent_coverage(coverage)
   cat(sprintf("Total Coverage: %.1f%%\n", coverage_percent))
-  
+
   # Generate HTML report
   report_file <- "coverage_report.html"
   covr::report(coverage, file = report_file)
   cat(sprintf("Coverage report saved to: %s\n", report_file))
-  
+
   # Check if coverage meets threshold
   threshold <- 80
   if (coverage_percent < threshold) {
@@ -87,11 +87,11 @@ if (run_coverage) {
 # Run linting
 if (run_lint) {
   cat("\n=== Running Code Style Checks ===\n")
-  
+
   # Check style with styler
   cat("Checking code style with styler...\n")
   style_changes <- styler::style_pkg(dry = "on")
-  
+
   if (length(style_changes) > 0) {
     cat("❌ Code style issues found. Run styler::style_pkg() to fix.\n")
     cat("Files with style issues:\n")
@@ -100,11 +100,11 @@ if (run_lint) {
   } else {
     cat("✅ Code style looks good!\n")
   }
-  
+
   # Check with lintr
   cat("Checking code quality with lintr...\n")
   lint_results <- lintr::lint_package()
-  
+
   if (length(lint_results) > 0) {
     cat("❌ Linting issues found:\n")
     print(lint_results)
@@ -117,13 +117,13 @@ if (run_lint) {
 # Run R CMD check
 if (run_check) {
   cat("\n=== Running R CMD Check ===\n")
-  
+
   check_results <- devtools::check(
     quiet = FALSE,
     args = c("--no-manual", "--as-cran"),
     error_on = "warning"
   )
-  
+
   if (length(check_results$errors) > 0 || length(check_results$warnings) > 0) {
     cat("❌ R CMD check found issues:\n")
     if (length(check_results$errors) > 0) {
@@ -132,7 +132,7 @@ if (run_check) {
       cat("\n")
     }
     if (length(check_results$warnings) > 0) {
-      cat("Warnings:\n") 
+      cat("Warnings:\n")
       cat(paste(check_results$warnings, collapse = "\n"))
       cat("\n")
     }

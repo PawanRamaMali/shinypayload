@@ -5,12 +5,11 @@ library(shiny)
 library(shinypayload)
 
 # Load the package if in development
-# devtools::load_all()
 
 # Your regular Shiny UI
 base_ui <- fluidPage(
   titlePanel("shinypayload - Basic Example"),
-  
+
   fluidRow(
     column(6,
       h4("URL Query Parameters"),
@@ -21,20 +20,20 @@ base_ui <- fluidPage(
       verbatimTextOutput("post_data")
     )
   ),
-  
+
   hr(),
-  
+
   h4("Endpoint Information"),
   verbatimTextOutput("endpoint_info"),
-  
+
   hr(),
-  
+
   h4("Test Commands"),
   p("Send JSON data:"),
   tags$pre('curl -X POST "http://localhost:3838/ingress?token=dev-token" \\
   -H "Content-Type: application/json" \\
   -d \'{"message": "Hello World", "value": 42}\''),
-  
+
   p("Send form data:"),
   tags$pre('curl -X POST "http://localhost:3838/ingress?token=dev-token" \\
   -H "Content-Type: application/x-www-form-urlencoded" \\
@@ -49,7 +48,7 @@ ui <- payload_ui(
 )
 
 server <- function(input, output, session) {
-  
+
   # Display URL query parameters
   output$query_params <- renderPrint({
     params <- params_get(session)
@@ -59,20 +58,20 @@ server <- function(input, output, session) {
       params
     }
   })
-  
+
   # Show endpoint URL
   output$endpoint_info <- renderText({
     url <- payload_endpoint_url(session, "/ingress")
     paste0("POST endpoint: ", url, "?token=dev-token")
   })
-  
+
   # Listen for POST data
   latest_data <- payload_last(
-    path = "/ingress", 
-    session = session, 
+    path = "/ingress",
+    session = session,
     intervalMillis = 300
   )
-  
+
   # Display received POST data
   output$post_data <- renderPrint({
     data <- latest_data()
@@ -87,7 +86,7 @@ server <- function(input, output, session) {
       )
     }
   })
-  
+
   # React to new data (optional - for logging or processing)
   observeEvent(latest_data(), {
     data <- latest_data()

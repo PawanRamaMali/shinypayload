@@ -13,9 +13,9 @@ test_that("payload_stream validates inputs correctly", {
   session <- mock_session()
 
   # Should fail with invalid inputs
-  expect_error(payload_stream("/test"))  # missing session
-  expect_error(payload_stream(123, session))  # invalid path type
-  expect_error(payload_stream(c("/path1", "/path2"), session))  # multiple paths
+  expect_error(payload_stream("/test")) # missing session
+  expect_error(payload_stream(123, session)) # invalid path type
+  expect_error(payload_stream(c("/path1", "/path2"), session)) # multiple paths
   expect_error(payload_stream("/test", session, filter_func = "not_function"))
   expect_error(payload_stream("/test", session, transform_func = 123))
   expect_error(payload_stream("/test", session, intervalMillis = -1))
@@ -59,7 +59,7 @@ test_that("payload_stream filters data correctly", {
 
   # Test filter function directly
   latest_payload <- shinypayload:::.get_payload_data("/test/logs")
-  expect_true(error_filter(latest_payload))  # Last payload was error level
+  expect_true(error_filter(latest_payload)) # Last payload was error level
 
   # Test with non-matching payload
   info_payload <- list(payload = list(level = "info", message = "Info"), meta = list(timestamp = Sys.time()))
@@ -79,11 +79,11 @@ test_that("payload_stream transforms data correctly", {
       list(
         timestamp = payload$meta$timestamp,
         temp_celsius = payload$payload$temperature,
-        temp_fahrenheit = payload$payload$temperature * 9/5 + 32,
+        temp_fahrenheit = payload$payload$temperature * 9 / 5 + 32,
         sensor_id = payload$payload$sensor_id %||% "unknown"
       )
     } else {
-      payload  # Return unchanged if no temperature
+      payload # Return unchanged if no temperature
     }
   }
 
@@ -106,19 +106,19 @@ test_that("payload_stream transforms data correctly", {
   )
 
   not_transformed <- temp_transform(other_payload)
-  expect_equal(not_transformed, other_payload)  # Should be unchanged
+  expect_equal(not_transformed, other_payload) # Should be unchanged
 })
 
 test_that("payload_conditional validates inputs correctly", {
   session <- mock_session()
 
   # Should fail with missing required parameters
-  expect_error(payload_conditional("/test"))  # missing session and condition
-  expect_error(payload_conditional("/test", session))  # missing condition_func
+  expect_error(payload_conditional("/test")) # missing session and condition
+  expect_error(payload_conditional("/test", session)) # missing condition_func
 
   # Should fail with invalid inputs
-  expect_error(payload_conditional(123, session, function(p) TRUE))  # invalid path
-  expect_error(payload_conditional("/test", session, "not_function"))  # invalid condition
+  expect_error(payload_conditional(123, session, function(p) TRUE)) # invalid path
+  expect_error(payload_conditional("/test", session, "not_function")) # invalid condition
   expect_error(payload_conditional("/test", session, function(p) TRUE, intervalMillis = -1))
 
   # Should succeed with valid inputs
@@ -162,9 +162,9 @@ test_that("payload_conditional condition logic works correctly", {
   complex_condition <- function(payload) {
     p <- payload$payload
     !is.null(p$user_id) &&
-    !is.null(p$event_type) &&
-    p$event_type == "critical" &&
-    (!is.null(p$priority) && p$priority >= 8)
+      !is.null(p$event_type) &&
+      p$event_type == "critical" &&
+      (!is.null(p$priority) && p$priority >= 8)
   }
 
   critical_payload <- list(payload = list(user_id = "user123", event_type = "critical", priority = 9), meta = list(timestamp = Sys.time()))
@@ -180,8 +180,8 @@ test_that("payload_batch validates inputs correctly", {
   session <- mock_session()
 
   # Should fail with invalid inputs
-  expect_error(payload_batch("/test"))  # missing session
-  expect_error(payload_batch(123, session))  # invalid path
+  expect_error(payload_batch("/test")) # missing session
+  expect_error(payload_batch(123, session)) # invalid path
   expect_error(payload_batch("/test", session, batch_size = -1))
   expect_error(payload_batch("/test", session, batch_size = 0))
   expect_error(payload_batch("/test", session, batch_timeout_ms = -1))
@@ -202,7 +202,9 @@ test_that("payload_batch processing function works correctly", {
 
   # Test batch processing function for sensor data
   sensor_processor <- function(payloads) {
-    if (length(payloads) == 0) return(list(count = 0))
+    if (length(payloads) == 0) {
+      return(list(count = 0))
+    }
 
     temperatures <- sapply(payloads, function(p) {
       if (!is.null(p$payload$temperature)) {
@@ -247,7 +249,7 @@ test_that("payload_batch processing function works correctly", {
   )
 
   result_mixed <- sensor_processor(mixed_payloads)
-  expect_equal(result_mixed$count, 3)  # Should still be 3 temperature readings
+  expect_equal(result_mixed$count, 3) # Should still be 3 temperature readings
   expect_equal(result_mixed$avg_temp, 25)
 
   # Test with empty batch
@@ -332,7 +334,7 @@ test_that("reactive features work with edge case data", {
   # Test filter with special characters and Unicode
   unicode_filter <- function(payload) {
     !is.null(payload$payload$message) &&
-    grepl("🚀|世界|café", payload$payload$message)
+      grepl("🚀|世界|café", payload$payload$message)
   }
 
   unicode_payloads <- list(
@@ -343,7 +345,7 @@ test_that("reactive features work with edge case data", {
   )
 
   unicode_results <- sapply(unicode_payloads, unicode_filter)
-  expect_equal(sum(unicode_results), 3)  # First 3 should match
+  expect_equal(sum(unicode_results), 3) # First 3 should match
 
   # Test with null and missing data
   null_safe_condition <- function(payload) {
@@ -374,12 +376,12 @@ test_that("reactive features work with edge case data", {
     tryCatch(null_safe_condition(p), error = function(e) FALSE)
   })
 
-  expect_equal(sum(edge_results), 1)  # Only the last one should pass
+  expect_equal(sum(edge_results), 1) # Only the last one should pass
 })
 
 test_that("reactive features handle concurrent scenarios", {
-  skip_on_ci()  # Concurrent scenarios may be flaky in CI
-  skip_on_cran()  # Also skip on CRAN
+  skip_on_ci() # Concurrent scenarios may be flaky in CI
+  skip_on_cran() # Also skip on CRAN
   session <- mock_session()
 
   # Test batch processor that simulates concurrent data processing
@@ -413,8 +415,8 @@ test_that("reactive features handle concurrent scenarios", {
     list(
       payload = list(
         id = i,
-        thread = i %% 3,  # Simulate 3 concurrent threads
-        timestamp = Sys.time() + runif(1, -0.1, 0.1)  # Slight time variations
+        thread = i %% 3, # Simulate 3 concurrent threads
+        timestamp = Sys.time() + runif(1, -0.1, 0.1) # Slight time variations
       ),
       meta = list(timestamp = Sys.time())
     )
@@ -447,7 +449,7 @@ test_that("reactive features handle concurrent scenarios", {
 
   # Test integrity filter on concurrent payloads
   integrity_results <- sapply(concurrent_payloads, integrity_filter)
-  expect_true(all(integrity_results))  # All should pass integrity check
+  expect_true(all(integrity_results)) # All should pass integrity check
 
   # Test with corrupted payload in the mix
   corrupted_payloads <- c(
@@ -457,5 +459,5 @@ test_that("reactive features handle concurrent scenarios", {
   )
 
   corrupted_results <- sapply(corrupted_payloads, integrity_filter)
-  expect_equal(sum(corrupted_results), 10)  # Should reject the corrupted one
+  expect_equal(sum(corrupted_results), 10) # Should reject the corrupted one
 })

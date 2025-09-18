@@ -76,7 +76,7 @@ test_that("XML parsing works correctly", {
   expect_equal(parsed_repeated$item[[3]], "third")
 
   # Malformed XML should return error object
-  bad_xml <- '<root><unclosed>tag</root>'
+  bad_xml <- "<root><unclosed>tag</root>"
   bad_body <- charToRaw(bad_xml)
 
   parsed_bad <- shinypayload:::.parse_request_body(req_xml, bad_body)
@@ -151,7 +151,7 @@ test_that("transformation hooks work correctly", {
   payload_data_config(transformation_hooks = list(timestamp_hook, validation_hook))
 
   # Test with JSON data containing timestamp
-  json_with_timestamp <- '{"name": "test", "timestamp": 1609459200}'  # 2021-01-01 00:00:00 UTC
+  json_with_timestamp <- '{"name": "test", "timestamp": 1609459200}' # 2021-01-01 00:00:00 UTC
   body_raw <- charToRaw(json_with_timestamp)
   req_json <- list(HTTP_CONTENT_TYPE = "application/json")
 
@@ -167,7 +167,7 @@ test_that("transformation hooks work correctly", {
 
   parsed_no_timestamp <- shinypayload:::.parse_request_body(req_json, body_no_timestamp)
   expect_equal(parsed_no_timestamp$name, "test")
-  expect_null(parsed_no_timestamp$timestamp)  # Should not be modified
+  expect_null(parsed_no_timestamp$timestamp) # Should not be modified
   expect_true(parsed_no_timestamp$validated)
 
   # Test with non-list data (should not crash)
@@ -175,7 +175,7 @@ test_that("transformation hooks work correctly", {
   req_text <- list(HTTP_CONTENT_TYPE = "text/plain")
 
   parsed_text <- shinypayload:::.parse_request_body(req_text, text_data)
-  expect_equal(parsed_text, "plain text")  # Should be unchanged
+  expect_equal(parsed_text, "plain text") # Should be unchanged
 
   # Clear hooks
   payload_data_clear()
@@ -259,7 +259,7 @@ test_that("data processing handles edge cases and large payloads", {
   # Test with very large JSON payload
   large_data <- list(
     id = 12345,
-    data = rep("x", 10000),  # 10KB of data
+    data = rep("x", 10000), # 10KB of data
     nested = list(
       deep = list(
         deeper = list(
@@ -286,7 +286,7 @@ test_that("data processing handles edge cases and large payloads", {
   expect_equal(parsed_malformed$raw_data, malformed_json)
 
   # Test with binary data
-  binary_data <- as.raw(c(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A))  # PNG header
+  binary_data <- as.raw(c(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)) # PNG header
   req_binary <- list(HTTP_CONTENT_TYPE = "image/png")
 
   parsed_binary <- shinypayload:::.parse_request_body(req_binary, binary_data)
@@ -346,18 +346,18 @@ test_that("content type detection handles various formats", {
   parsed_missing <- shinypayload:::.parse_request_body(req_missing, body_raw)
   # The function should still be able to parse JSON without content type
   if (is.list(parsed_missing) && !is.null(parsed_missing$test)) {
-    expect_equal(parsed_missing$test, TRUE)  # Should fallback to JSON parsing
+    expect_equal(parsed_missing$test, TRUE) # Should fallback to JSON parsing
   } else if (is.character(parsed_missing)) {
-    expect_true(is.character(parsed_missing))  # Or return as string
+    expect_true(is.character(parsed_missing)) # Or return as string
   } else {
     # If parsing failed completely, that's also acceptable behavior
-    expect_true(TRUE)  # Accept any result for missing content type
+    expect_true(TRUE) # Accept any result for missing content type
   }
 
   # Test with content type in different request fields
   req_alt_field <- list(
     CONTENT_TYPE = "application/json",
-    HEADERS = list("content-type" = "text/plain")  # Should prefer HTTP_CONTENT_TYPE
+    HEADERS = list("content-type" = "text/plain") # Should prefer HTTP_CONTENT_TYPE
   )
   parsed_alt <- shinypayload:::.parse_request_body(req_alt_field, body_raw)
   if (is.list(parsed_alt)) {

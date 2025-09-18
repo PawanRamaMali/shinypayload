@@ -1,11 +1,11 @@
 test_that("payload_debug_config validates inputs correctly", {
   # Should fail with invalid inputs
-  expect_error(payload_debug_config(debug_mode = "true"))  # string instead of logical
-  expect_error(payload_debug_config(log_level = "INVALID"))  # invalid log level
-  expect_error(payload_debug_config(log_level = 123))  # numeric instead of character
-  expect_error(payload_debug_config(max_log_entries = -1))  # negative number
-  expect_error(payload_debug_config(max_log_entries = 0))  # zero
-  expect_error(payload_debug_config(max_log_entries = "1000"))  # string instead of numeric
+  expect_error(payload_debug_config(debug_mode = "true")) # string instead of logical
+  expect_error(payload_debug_config(log_level = "INVALID")) # invalid log level
+  expect_error(payload_debug_config(log_level = 123)) # numeric instead of character
+  expect_error(payload_debug_config(max_log_entries = -1)) # negative number
+  expect_error(payload_debug_config(max_log_entries = 0)) # zero
+  expect_error(payload_debug_config(max_log_entries = "1000")) # string instead of numeric
 
   # Should succeed with valid inputs (may produce console output)
   payload_debug_config(debug_mode = TRUE)
@@ -106,7 +106,7 @@ test_that("log entries contain correct metadata", {
   shinypayload:::.log_message("WARN", "Warning without context")
 
   recent_logs <- payload_logs(limit = 2)
-  no_context_log <- recent_logs[[1]]  # Most recent
+  no_context_log <- recent_logs[[1]] # Most recent
 
   expect_equal(no_context_log$level, "WARN")
   expect_equal(no_context_log$message, "Warning without context")
@@ -156,9 +156,9 @@ test_that("payload_logs filtering works correctly", {
   expect_true(all(diff(as.numeric(timestamps)) <= 0))
 
   # Test filtering by time
-  mid_time <- base_time + 0.02  # Should exclude first few logs
+  mid_time <- base_time + 0.02 # Should exclude first few logs
   since_logs <- payload_logs(since = mid_time)
-  expect_true(length(since_logs) < 6)  # Should be fewer than all logs
+  expect_true(length(since_logs) < 6) # Should be fewer than all logs
 
   # Test combining filters
   recent_info_logs <- payload_logs(level = "INFO", since = mid_time, limit = 1)
@@ -204,7 +204,7 @@ test_that("log cleanup and management works correctly", {
 
   # Clear only DEBUG logs
   debug_cleared <- payload_logs_clear("DEBUG")
-  expect_true(debug_cleared >= 0)  # May be 0 if no DEBUG logs exist
+  expect_true(debug_cleared >= 0) # May be 0 if no DEBUG logs exist
 
   remaining_after_debug <- payload_logs()
   expect_equal(length(remaining_after_debug), 2)
@@ -374,7 +374,7 @@ test_that("logging handles edge cases and errors", {
   # Test with malformed request objects
   malformed_req <- list(
     REMOTE_ADDR = NULL,
-    REQUEST_METHOD = 123,  # Should be character
+    REQUEST_METHOD = 123, # Should be character
     HTTP_USER_AGENT = NULL
   )
 
@@ -386,7 +386,7 @@ test_that("logging handles edge cases and errors", {
   }
 
   rapid_logs <- payload_logs()
-  expect_true(length(rapid_logs) > 0)  # Should handle rapid logging
+  expect_true(length(rapid_logs) > 0) # Should handle rapid logging
 
   # Test log level that doesn't exist (should not crash)
   expect_silent(shinypayload:::.log_message("INVALID_LEVEL", "This should not crash"))

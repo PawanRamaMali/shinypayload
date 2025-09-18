@@ -3,23 +3,26 @@ test_that("payload_methods validates input correctly", {
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
 
   # Should fail with invalid inputs
-  expect_error(payload_methods(base_ui, list()))  # empty endpoints
-  expect_error(payload_methods(base_ui, "not_a_list"))  # not a list
+  expect_error(payload_methods(base_ui, list())) # empty endpoints
+  expect_error(payload_methods(base_ui, "not_a_list")) # not a list
   # NULL UI should either throw error or handle gracefully
-  result_null_ui <- tryCatch({
-    payload_methods(NULL, list(list(path = "/test", methods = "POST")))
-    "no_error"
-  }, error = function(e) {
-    "error_thrown"
-  })
-  expect_true(result_null_ui %in% c("error_thrown", "no_error"))  # Accept either behavior
+  result_null_ui <- tryCatch(
+    {
+      payload_methods(NULL, list(list(path = "/test", methods = "POST")))
+      "no_error"
+    },
+    error = function(e) {
+      "error_thrown"
+    }
+  )
+  expect_true(result_null_ui %in% c("error_thrown", "no_error")) # Accept either behavior
 
   # Should fail with invalid endpoint config
-  expect_error(payload_methods(base_ui, list(list())))  # missing required fields
-  expect_error(payload_methods(base_ui, list(list(path = 123, methods = "POST"))))  # wrong type
-  expect_error(payload_methods(base_ui, list(list(path = "/test", methods = 123))))  # wrong type
-  expect_error(payload_methods(base_ui, list(list(path = "test", methods = "POST"))))  # missing leading slash
-  expect_error(payload_methods(base_ui, list(list(path = "/test", methods = "INVALID"))))  # invalid method
+  expect_error(payload_methods(base_ui, list(list()))) # missing required fields
+  expect_error(payload_methods(base_ui, list(list(path = 123, methods = "POST")))) # wrong type
+  expect_error(payload_methods(base_ui, list(list(path = "/test", methods = 123)))) # wrong type
+  expect_error(payload_methods(base_ui, list(list(path = "test", methods = "POST")))) # missing leading slash
+  expect_error(payload_methods(base_ui, list(list(path = "/test", methods = "INVALID")))) # invalid method
 
   # Should succeed with valid config
   endpoints <- list(
@@ -80,10 +83,10 @@ test_that("payload_methods handles different HTTP methods correctly", {
 
   # Test unsupported method on supported endpoint
   req_unsupported <- req_post
-  req_unsupported$REQUEST_METHOD <- "DELETE"  # DELETE not supported on /api/data
+  req_unsupported$REQUEST_METHOD <- "DELETE" # DELETE not supported on /api/data
 
   response_unsupported <- ui_func(req_unsupported)
-  expect_equal(response_unsupported, base_ui)  # Should return base UI
+  expect_equal(response_unsupported, base_ui) # Should return base UI
 
   # Test GET request - should return base UI
   req_get <- list(
@@ -102,7 +105,7 @@ test_that("payload_methods handles authentication per endpoint", {
   skip_on_ci()
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   endpoints <- list(
-    list(path = "/public", methods = "POST"),  # no token
+    list(path = "/public", methods = "POST"), # no token
     list(path = "/private", methods = "POST", token = "secret123"),
     list(path = "/admin", methods = "DELETE", token = "admin-key")
   )
@@ -233,7 +236,7 @@ test_that("payload_methods handles edge cases and errors", {
   # Edge case: duplicate paths with different methods
   endpoints_duplicate <- list(
     list(path = "/api/data", methods = "POST"),
-    list(path = "/api/data", methods = "PUT")  # Same path, different method
+    list(path = "/api/data", methods = "PUT") # Same path, different method
   )
 
   ui_func_dup <- payload_methods(base_ui, endpoints_duplicate)

@@ -28,11 +28,13 @@
   config <- .shinypayload_state$config
   current_level <- .log_levels[[config$log_level]] %||% 2
   target_level <- .log_levels[[level]] %||% 2
-  return(target_level >= current_level)
+  target_level >= current_level
 }
 
 .log_message <- function(level, message, path = NULL, req = NULL) {
-  if (!.should_log(level)) return()
+  if (!.should_log(level)) {
+    return()
+  }
 
   log_entry <- list(
     timestamp = Sys.time(),
@@ -54,9 +56,11 @@
   # Print to console if debug mode
   config <- .shinypayload_state$config
   if (config$debug_mode) {
-    cat(sprintf("[%s] %s: %s\n",
-                format(log_entry$timestamp, "%Y-%m-%d %H:%M:%S"),
-                level, message))
+    cat(sprintf(
+      "[%s] %s: %s\n",
+      format(log_entry$timestamp, "%Y-%m-%d %H:%M:%S"),
+      level, message
+    ))
   }
 }
 
@@ -139,7 +143,9 @@
 }
 
 .apply_retention_policies <- function(history_list) {
-  if (length(history_list) == 0) return(history_list)
+  if (length(history_list) == 0) {
+  history_list
+  }
 
   config <- .shinypayload_state$config
 
@@ -154,7 +160,7 @@
     entry$timestamp > cutoff_time
   }, history_list)
 
-  return(history_list)
+  history_list
 }
 
 .get_payload_history <- function(path, limit = NULL, since = NULL) {
@@ -176,7 +182,7 @@
     history_list <- history_list[1:limit]
   }
 
-  return(history_list)
+  history_list
 }
 
 .get_version <- function(path) {
@@ -199,7 +205,7 @@
 
 .read_request_body <- function(rook_input) {
   if (is.null(rook_input)) {
-    return(raw(0))
+  raw(0)
   }
 
   body_parts <- list()
@@ -210,14 +216,14 @@
   }
 
   if (length(body_parts) == 0) {
-    return(raw(0))
+  raw(0)
   }
   do.call(c, body_parts)
 }
 
 .parse_request_body <- function(req, body_raw) {
   if (length(body_raw) == 0) {
-    return(NULL)
+  NULL
   }
 
   content_type <- req$HTTP_CONTENT_TYPE %||%
@@ -264,16 +270,19 @@
 
 .parse_xml_content <- function(body_raw) {
   if (requireNamespace("xml2", quietly = TRUE)) {
-    tryCatch({
-      xml_content <- xml2::read_xml(rawToChar(body_raw))
-      .xml_to_list(xml_content)
-    }, error = function(e) {
-      list(
-        error = "XML parsing failed",
-        raw_data = rawToChar(body_raw),
-        error_message = e$message
-      )
-    })
+    tryCatch(
+      {
+        xml_content <- xml2::read_xml(rawToChar(body_raw))
+        .xml_to_list(xml_content)
+      },
+      error = function(e) {
+        list(
+          error = "XML parsing failed",
+          raw_data = rawToChar(body_raw),
+          error_message = e$message
+        )
+      }
+    )
   } else {
     list(
       warning = "xml2 package not available for XML parsing",
@@ -287,7 +296,7 @@
     # Simple XML to list conversion
     children <- xml2::xml_children(xml_node)
     if (length(children) == 0) {
-      return(xml2::xml_text(xml_node))
+  xml2::xml_text(xml_node)
     }
 
     result <- list()
@@ -304,9 +313,9 @@
         result[[name]] <- value
       }
     }
-    return(result)
+  result
   }
-  return(NULL)
+  NULL
 }
 
 .parse_multipart_content <- function(req, body_raw) {
@@ -328,7 +337,7 @@
     boundary = boundary,
     size_bytes = length(body_raw),
     note = "Multipart parsing requires specialized handling - raw data preserved",
-    raw_data = body_raw  # Preserve raw data for custom processing
+    raw_data = body_raw # Preserve raw data for custom processing
   )
 }
 
@@ -339,31 +348,34 @@
   if (!is.null(config$transformation_hooks)) {
     for (hook in config$transformation_hooks) {
       if (is.function(hook)) {
-        tryCatch({
-          data <- hook(data, content_type, req)
-        }, error = function(e) {
-          warning("Transformation hook failed: ", e$message)
-        })
+        tryCatch(
+          {
+            data <- hook(data, content_type, req)
+          },
+          error = function(e) {
+            warning("Transformation hook failed: ", e$message)
+          }
+        )
       }
     }
   }
 
-  return(data)
+  data
 }
 
 # Security helper functions
 .check_hmac_signature <- function(req, body_raw, secret_key) {
   if (is.null(secret_key) || secret_key == "") {
-    return(TRUE)
+  TRUE
   }
 
   # Get signature from header
   signature_header <- req$HEADERS[["x-signature"]] %||%
-                     req$HEADERS[["x-hub-signature"]] %||%
-                     req$HEADERS[["x-signature-256"]]
+    req$HEADERS[["x-hub-signature"]] %||%
+    req$HEADERS[["x-signature-256"]]
 
   if (is.null(signature_header)) {
-    return(FALSE)
+  FALSE
   }
 
   # Handle different signature formats
@@ -375,7 +387,7 @@
     algorithm <- "sha1"
   } else {
     signature <- signature_header
-    algorithm <- "sha256"  # default
+    algorithm <- "sha256" # default
   }
 
   # Calculate expected signature
@@ -388,10 +400,10 @@
       raw = FALSE
     )
 
-    return(identical(signature, expected_signature))
+  identical(signature, expected_signature)
   } else {
     warning("digest package not available for HMAC validation")
-    return(TRUE)
+  TRUE
   }
 }
 
@@ -402,25 +414,25 @@
   # Check whitelist (if specified, only allow listed IPs)
   if (!is.null(config$ip_whitelist) && length(config$ip_whitelist) > 0) {
     if (!remote_ip %in% config$ip_whitelist) {
-      return(FALSE)
+  FALSE
     }
   }
 
   # Check blacklist (deny listed IPs)
   if (!is.null(config$ip_blacklist) && length(config$ip_blacklist) > 0) {
     if (remote_ip %in% config$ip_blacklist) {
-      return(FALSE)
+  FALSE
     }
   }
 
-  return(TRUE)
+  TRUE
 }
 
 .check_rate_limit <- function(req) {
   config <- .shinypayload_state$config
 
   if (!config$rate_limit_enabled) {
-    return(TRUE)
+  TRUE
   }
 
   remote_ip <- req$REMOTE_ADDR %||% "unknown"
@@ -438,7 +450,7 @@
 
   # Check if limit exceeded
   if (length(recent_requests) >= config$rate_limit_requests) {
-    return(FALSE)
+  FALSE
   }
 
   # Add current request timestamp
@@ -447,18 +459,18 @@
   # Store updated request list
   assign(ip_key, recent_requests, envir = .shinypayload_state$rate_limits)
 
-  return(TRUE)
+  TRUE
 }
 
 .check_auth <- function(req, token) {
   if (is.null(token) || token == "") {
-    return(TRUE)
+  TRUE
   }
 
   # Check query parameter
   query_params <- shiny::parseQueryString(req$QUERY_STRING %||% "")
   if (identical(query_params$token, token)) {
-    return(TRUE)
+  TRUE
   }
 
   # Check headers
@@ -466,13 +478,13 @@
 
   # Check X-Ingress-Token header
   if (identical(headers[["x-ingress-token"]], token)) {
-    return(TRUE)
+  TRUE
   }
 
   # Check Authorization header
   auth_header <- headers[["authorization"]] %||% req$HTTP_AUTHORIZATION
   if (identical(auth_header, token)) {
-    return(TRUE)
+  TRUE
   }
 
   FALSE
@@ -611,20 +623,20 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
     if (is.function(base_ui)) {
       # Check if base_ui accepts a request parameter
       if (length(formals(base_ui)) >= 1) {
-        return(base_ui(req))
+  base_ui(req)
       } else {
-        return(base_ui())
+  base_ui()
       }
     }
 
     # Return static UI
-    return(base_ui)
+  base_ui
   }
 
   # CRITICAL: Tell Shiny this function handles POST requests
   attr(ui_function, "http_methods_supported") <- c("GET", "POST")
 
-  return(ui_function)
+  ui_function
 }
 
 #' Enhanced HTTP methods support for multiple endpoints
@@ -677,7 +689,6 @@ payload_methods <- function(base_ui, endpoints) {
     # Check if this request matches any configured endpoint
     for (ep in endpoints) {
       if (identical(req$PATH_INFO, ep$path) && req$REQUEST_METHOD %in% ep$methods) {
-
         # Security checks
         # 1. IP restrictions
         if (!.check_ip_restrictions(req)) {
@@ -739,18 +750,21 @@ payload_methods <- function(base_ui, endpoints) {
             req$CONTENT_TYPE %||% ""
           content_type <- tolower(trimws(strsplit(content_type, ";")[[1]][1]))
 
-          payload <- tryCatch({
-            if (content_type == "application/json") {
-              jsonlite::fromJSON(body_text, simplifyVector = FALSE)
-            } else if (content_type == "application/x-www-form-urlencoded") {
-              shiny::parseQueryString(body_text)
-            } else {
-              # Try JSON first, fallback to text
-              jsonlite::fromJSON(body_text, simplifyVector = FALSE)
+          payload <- tryCatch(
+            {
+              if (content_type == "application/json") {
+                jsonlite::fromJSON(body_text, simplifyVector = FALSE)
+              } else if (content_type == "application/x-www-form-urlencoded") {
+                shiny::parseQueryString(body_text)
+              } else {
+                # Try JSON first, fallback to text
+                jsonlite::fromJSON(body_text, simplifyVector = FALSE)
+              }
+            },
+            error = function(e) {
+              body_text
             }
-          }, error = function(e) {
-            body_text
-          })
+          )
         }
 
         # Create metadata
@@ -780,21 +794,21 @@ payload_methods <- function(base_ui, endpoints) {
     # Handle regular UI requests (no endpoint matched)
     if (is.function(base_ui)) {
       if (length(formals(base_ui)) >= 1) {
-        return(base_ui(req))
+  base_ui(req)
       } else {
-        return(base_ui())
+  base_ui()
       }
     }
 
     # Return static UI
-    return(base_ui)
+  base_ui
   }
 
   # Extract all supported methods from endpoints
   all_methods <- unique(c("GET", unlist(lapply(endpoints, function(ep) ep$methods))))
   attr(ui_function, "http_methods_supported") <- all_methods
 
-  return(ui_function)
+  ui_function
 }
 
 #' Setup POST endpoint in server function - MUST be called in server
@@ -840,7 +854,7 @@ setup_payload_endpoint <- function(path = "/ingress", session, token = NULL) {
     .store_payload(path, list(payload = payload, meta = meta))
 
     # Return success response
-    return(.create_ok_response())
+  .create_ok_response()
   }
 
   # Register the endpoint with Shiny
@@ -1016,7 +1030,7 @@ payload_history_clear <- function(path = NULL) {
       rm(list = key, envir = .shinypayload_state$history)
     }
 
-    return(total_count)
+  total_count
   } else {
     # Clear history for specific path
     stopifnot(
@@ -1032,7 +1046,7 @@ payload_history_clear <- function(path = NULL) {
       rm(list = key, envir = .shinypayload_state$history)
     }
 
-    return(count)
+  count
   }
 }
 
@@ -1146,11 +1160,11 @@ payload_history_stats <- function(path = NULL) {
 #'   )
 #' }
 payload_security_config <- function(hmac_secret = NULL,
-                                  ip_whitelist = NULL,
-                                  ip_blacklist = NULL,
-                                  rate_limit_enabled = FALSE,
-                                  rate_limit_requests = 100,
-                                  rate_limit_window_seconds = 3600) {
+                                    ip_whitelist = NULL,
+                                    ip_blacklist = NULL,
+                                    rate_limit_enabled = FALSE,
+                                    rate_limit_requests = 100,
+                                    rate_limit_window_seconds = 3600) {
   stopifnot(
     is.null(hmac_secret) || is.character(hmac_secret),
     is.null(ip_whitelist) || is.character(ip_whitelist),
@@ -1229,7 +1243,7 @@ payload_security_clear_rate_limits <- function(ip_address = NULL) {
       rm(list = all_keys, envir = .shinypayload_state$rate_limits)
     }
 
-    return(count)
+  count
   } else {
     # Clear rate limits for specific IP
     stopifnot(
@@ -1240,9 +1254,9 @@ payload_security_clear_rate_limits <- function(ip_address = NULL) {
     ip_key <- paste0("rate_limit:", ip_address)
     if (exists(ip_key, envir = .shinypayload_state$rate_limits)) {
       rm(list = ip_key, envir = .shinypayload_state$rate_limits)
-      return(1)
+  1
     } else {
-      return(0)
+  0
     }
   }
 }
@@ -1273,7 +1287,7 @@ payload_security_clear_rate_limits <- function(ip_address = NULL) {
 #'
 #'   payload_data_config(
 #'     transformation_hooks = list(timestamp_hook, validation_hook),
-#'     max_payload_size = 1024 * 1024  # 1MB limit
+#'     max_payload_size = 1024 * 1024 # 1MB limit
 #'   )
 #' }
 payload_data_config <- function(transformation_hooks = NULL, max_payload_size = NULL) {
@@ -1390,14 +1404,14 @@ payload_data_clear <- function(clear_hooks = TRUE, clear_limits = TRUE) {
 #'         list(
 #'           timestamp = payload$meta$timestamp,
 #'           temp_celsius = payload$payload$value,
-#'           temp_fahrenheit = payload$payload$value * 9/5 + 32
+#'           temp_fahrenheit = payload$payload$value * 9 / 5 + 32
 #'         )
 #'       }
 #'     )
 #'   }
 #' }
 payload_stream <- function(path = "/ingress", session, filter_func = NULL,
-                          transform_func = NULL, intervalMillis = 100, max_items = 50) {
+                           transform_func = NULL, intervalMillis = 100, max_items = 50) {
   stopifnot(
     !missing(session),
     is.character(path),
@@ -1436,23 +1450,29 @@ payload_stream <- function(path = "/ingress", session, filter_func = NULL,
         # Apply filter if provided
         include_payload <- TRUE
         if (!is.null(filter_func)) {
-          tryCatch({
-            include_payload <- filter_func(latest_payload)
-          }, error = function(e) {
-            warning("Filter function failed: ", e$message)
-            include_payload <- TRUE
-          })
+          tryCatch(
+            {
+              include_payload <- filter_func(latest_payload)
+            },
+            error = function(e) {
+              warning("Filter function failed: ", e$message)
+              include_payload <- TRUE
+            }
+          )
         }
 
         if (include_payload) {
           # Apply transformation if provided
           processed_payload <- latest_payload
           if (!is.null(transform_func)) {
-            tryCatch({
-              processed_payload <- transform_func(latest_payload)
-            }, error = function(e) {
-              warning("Transform function failed: ", e$message)
-            })
+            tryCatch(
+              {
+                processed_payload <- transform_func(latest_payload)
+              },
+              error = function(e) {
+                warning("Transform function failed: ", e$message)
+              }
+            )
           }
 
           # Add to stream
@@ -1487,7 +1507,7 @@ payload_stream <- function(path = "/ingress", session, filter_func = NULL,
 #'     high_temp_alert <- payload_conditional("/api/sensors", session,
 #'       condition_func = function(payload) {
 #'         !is.null(payload$payload$temperature) &&
-#'         payload$payload$temperature > 30
+#'           payload$payload$temperature > 30
 #'       }
 #'     )
 #'
@@ -1501,7 +1521,7 @@ payload_stream <- function(path = "/ingress", session, filter_func = NULL,
 #'   }
 #' }
 payload_conditional <- function(path = "/ingress", session, condition_func,
-                               intervalMillis = 300) {
+                                intervalMillis = 300) {
   stopifnot(
     !missing(session),
     !missing(condition_func),
@@ -1524,15 +1544,18 @@ payload_conditional <- function(path = "/ingress", session, condition_func,
         latest_payload <- .get_payload_data(path)
         if (!is.null(latest_payload)) {
           meets_condition <- FALSE
-          tryCatch({
-            meets_condition <- condition_func(latest_payload)
-          }, error = function(e) {
-            warning("Condition function failed: ", e$message)
-          })
+          tryCatch(
+            {
+              meets_condition <- condition_func(latest_payload)
+            },
+            error = function(e) {
+              warning("Condition function failed: ", e$message)
+            }
+          )
 
           if (meets_condition) {
             last_qualifying_version(current_version)
-            return(current_version)
+  current_version
           }
         }
       }
@@ -1572,8 +1595,8 @@ payload_conditional <- function(path = "/ingress", session, condition_func,
 #'   }
 #' }
 payload_batch <- function(path = "/ingress", session, batch_size = 10,
-                         batch_timeout_ms = 5000, process_func = NULL,
-                         intervalMillis = 500) {
+                          batch_timeout_ms = 5000, process_func = NULL,
+                          intervalMillis = 500) {
   stopifnot(
     !missing(session),
     is.character(path),
@@ -1619,18 +1642,21 @@ payload_batch <- function(path = "/ingress", session, batch_size = 10,
         # Process the batch
         processed_result <- current_batch
         if (!is.null(process_func)) {
-          tryCatch({
-            processed_result <- process_func(current_batch)
-          }, error = function(e) {
-            warning("Batch processing function failed: ", e$message)
-          })
+          tryCatch(
+            {
+              processed_result <- process_func(current_batch)
+            },
+            error = function(e) {
+              warning("Batch processing function failed: ", e$message)
+            }
+          )
         }
 
         batch_result(processed_result)
-        batch_data(list())  # Clear batch
+        batch_data(list()) # Clear batch
         batch_start_time(NULL)
 
-        return(Sys.time())
+  Sys.time()
       }
 
       # Add new payloads to batch
@@ -1649,7 +1675,7 @@ payload_batch <- function(path = "/ingress", session, batch_size = 10,
         }
       }
 
-      return(last_processed_version())
+  last_processed_version()
     },
     valueFunc = function() {
       batch_result()
@@ -1687,8 +1713,10 @@ payload_debug_config <- function(debug_mode = FALSE, log_level = "INFO", max_log
 
   .shinypayload_state$config <- config
 
-  .log_message("INFO", sprintf("Debug configuration updated: debug_mode=%s, log_level=%s",
-                              debug_mode, log_level))
+  .log_message("INFO", sprintf(
+    "Debug configuration updated: debug_mode=%s, log_level=%s",
+    debug_mode, log_level
+  ))
 
   invisible(TRUE)
 }
@@ -1741,7 +1769,7 @@ payload_logs <- function(level = NULL, limit = 50, since = NULL) {
   all_log_keys <- ls(envir = .shinypayload_state$logs)
 
   if (length(all_log_keys) == 0) {
-    return(list())
+  list()
   }
 
   # Get all log entries
@@ -1767,7 +1795,7 @@ payload_logs <- function(level = NULL, limit = 50, since = NULL) {
     all_logs <- all_logs[1:limit]
   }
 
-  return(all_logs)
+  all_logs
 }
 
 #' Clear log entries
@@ -1795,7 +1823,7 @@ payload_logs_clear <- function(level = NULL) {
     if (count > 0) {
       rm(list = all_log_keys, envir = .shinypayload_state$logs)
     }
-    return(count)
+  count
   } else {
     # Clear logs of specific level
     logs_to_remove <- character(0)
@@ -1811,7 +1839,7 @@ payload_logs_clear <- function(level = NULL) {
       rm(list = logs_to_remove, envir = .shinypayload_state$logs)
     }
 
-    return(length(logs_to_remove))
+  length(logs_to_remove)
   }
 }
 

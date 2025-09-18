@@ -3,7 +3,7 @@
 test_that("webhook endpoint simulation with full security", {
   skip_if_not_installed("digest")
   skip_on_cran()
-  skip_on_ci()  # Skip in CI due to IP whitelist restrictions
+  skip_on_ci() # Skip in CI due to IP whitelist restrictions
   # Clear initial state
   payload_history_clear()
   payload_logs_clear()
@@ -13,7 +13,7 @@ test_that("webhook endpoint simulation with full security", {
   webhook_secret <- "github-webhook-secret-2024"
   payload_security_config(
     hmac_secret = webhook_secret,
-    ip_whitelist = c("192.30.252.0", "140.82.112.0", "192.168.1.100", "127.0.0.1", "::1"),  # Include localhost IPs
+    ip_whitelist = c("192.30.252.0", "140.82.112.0", "192.168.1.100", "127.0.0.1", "::1"), # Include localhost IPs
     rate_limit_enabled = TRUE,
     rate_limit_requests = 50,
     rate_limit_window_seconds = 3600
@@ -77,7 +77,7 @@ test_that("webhook endpoint simulation with full security", {
       "x-github-event" = "pull_request",
       "user-agent" = "GitHub-Hookshot/abc123"
     ),
-    REMOTE_ADDR = "192.30.252.10",  # GitHub IP
+    REMOTE_ADDR = "192.30.252.10", # GitHub IP
     HTTP_CONTENT_TYPE = "application/json",
     rook.input = mock_input
   )

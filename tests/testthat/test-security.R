@@ -129,8 +129,8 @@ test_that("IP restrictions work correctly", {
 })
 
 test_that("rate limiting works correctly", {
-  skip_on_ci()  # Timing-dependent test may be flaky in CI
-  skip_on_cran()  # Also skip on CRAN
+  skip_on_ci() # Timing-dependent test may be flaky in CI
+  skip_on_cran() # Also skip on CRAN
   # Clear any existing rate limit data
   payload_security_clear_rate_limits()
 
@@ -189,7 +189,7 @@ test_that("security clear functions work correctly", {
 
   # Clear all
   cleared_all <- payload_security_clear_rate_limits()
-  expect_true(cleared_all >= 2)  # Should clear at least 2 IPs (may be more from other tests)
+  expect_true(cleared_all >= 2) # Should clear at least 2 IPs (may be more from other tests)
 
   # Clear empty should return 0
   cleared_empty <- payload_security_clear_rate_limits()
@@ -289,7 +289,7 @@ test_that("security handles attack scenarios", {
     rate_limit_enabled = TRUE,
     rate_limit_requests = 5,
     rate_limit_window_seconds = 10,
-    ip_blacklist = c("192.168.1.999")  # Known bad IP
+    ip_blacklist = c("192.168.1.999") # Known bad IP
   )
 
   # Simulate brute force attack
@@ -302,16 +302,16 @@ test_that("security handles attack scenarios", {
     attack_attempts <- attack_attempts + 1
   }
 
-  expect_true(attack_attempts <= 5)  # Should be rate limited
-  expect_false(shinypayload:::.check_rate_limit(attack_req))  # Next attempt should fail
+  expect_true(attack_attempts <= 5) # Should be rate limited
+  expect_false(shinypayload:::.check_rate_limit(attack_req)) # Next attempt should fail
 
   # Simulate IP spoofing attempt
-  spoofed_req <- list(REMOTE_ADDR = "192.168.1.999")  # Blacklisted IP
+  spoofed_req <- list(REMOTE_ADDR = "192.168.1.999") # Blacklisted IP
   expect_false(shinypayload:::.check_ip_restrictions(spoofed_req))
 
   # Simulate legitimate user during attack
   legit_req <- list(REMOTE_ADDR = "192.168.1.50")
-  expect_true(shinypayload:::.check_rate_limit(legit_req))  # Should still work
+  expect_true(shinypayload:::.check_rate_limit(legit_req)) # Should still work
 
   # Test with malformed IP addresses
   malformed_ips <- c("", "invalid.ip", "999.999.999.999", "localhost", "::1")
@@ -343,7 +343,7 @@ test_that("HMAC validation handles edge cases and attacks", {
   # Test timing attack resistance (basic check)
   correct_sig <- digest::hmac(secret_key, body_raw, algo = "sha256", serialize = FALSE, raw = FALSE)
   wrong_sig1 <- "completely_wrong_signature"
-  wrong_sig2 <- substr(correct_sig, 1, nchar(correct_sig) - 1)  # Almost correct
+  wrong_sig2 <- substr(correct_sig, 1, nchar(correct_sig) - 1) # Almost correct
 
   req_correct <- list(HEADERS = list("x-signature-256" = paste0("sha256=", correct_sig)))
   req_wrong1 <- list(HEADERS = list("x-signature-256" = paste0("sha256=", wrong_sig1)))
@@ -364,11 +364,11 @@ test_that("HMAC validation handles edge cases and attacks", {
 
   # Test with malformed signatures
   malformed_sigs <- c(
-    "sha256=",  # Empty signature
-    "invalidformat",  # No algorithm prefix
-    "sha256=short",  # Too short
-    paste0("sha256=", paste(rep("a", 128), collapse = "")),  # Wrong length
-    paste0("md5=", correct_sig)  # Wrong algorithm
+    "sha256=", # Empty signature
+    "invalidformat", # No algorithm prefix
+    "sha256=short", # Too short
+    paste0("sha256=", paste(rep("a", 128), collapse = "")), # Wrong length
+    paste0("md5=", correct_sig) # Wrong algorithm
   )
 
   for (bad_sig in malformed_sigs) {
@@ -423,8 +423,8 @@ test_that("security configuration persistence works", {
   # Partial updates should preserve other settings
   payload_security_config(rate_limit_requests = 100)
   status_updated <- payload_security_status()
-  expect_true(status_updated$hmac_enabled)  # Should still be true
-  expect_equal(status_updated$rate_limit_requests, 100L)  # Should be updated
+  expect_true(status_updated$hmac_enabled) # Should still be true
+  expect_equal(status_updated$rate_limit_requests, 100L) # Should be updated
 
   # Reset all
   payload_security_config(
