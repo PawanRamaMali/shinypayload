@@ -1,6 +1,14 @@
 # Tests for payload_ui function
 
 test_that("payload_ui creates a function", {
+  # Reset security configuration
+  payload_security_config(
+    hmac_secret = NULL,
+    ip_whitelist = NULL,
+    ip_blacklist = NULL,
+    rate_limit_enabled = FALSE
+  )
+
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/test", token = "secret")
 
@@ -9,6 +17,14 @@ test_that("payload_ui creates a function", {
 })
 
 test_that("payload_ui validates path parameter", {
+  # Reset security configuration
+  payload_security_config(
+    hmac_secret = NULL,
+    ip_whitelist = NULL,
+    ip_blacklist = NULL,
+    rate_limit_enabled = FALSE
+  )
+
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
 
   # Valid path
@@ -60,6 +76,15 @@ test_that("payload_ui processes POST requests correctly", {
 
 test_that("payload_ui handles authentication", {
   skip_on_cran()
+
+  # Reset security configuration
+  payload_security_config(
+    hmac_secret = NULL,
+    ip_whitelist = NULL,
+    ip_blacklist = NULL,
+    rate_limit_enabled = FALSE
+  )
+
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "secret")
 
@@ -79,6 +104,15 @@ test_that("payload_ui handles authentication", {
 
 test_that("payload_ui handles POST requests with valid token", {
   skip_on_cran()
+
+  # Reset security configuration
+  payload_security_config(
+    hmac_secret = NULL,
+    ip_whitelist = NULL,
+    ip_blacklist = NULL,
+    rate_limit_enabled = FALSE
+  )
+
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "secret")
 

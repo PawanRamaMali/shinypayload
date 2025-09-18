@@ -12,7 +12,7 @@ test_that("webhook endpoint simulation with full security", {
   webhook_secret <- "github-webhook-secret-2024"
   payload_security_config(
     hmac_secret = webhook_secret,
-    ip_whitelist = c("192.30.252.0", "140.82.112.0", "192.168.1.100"),  # GitHub IP ranges + test IP
+    ip_whitelist = c("192.30.252.0", "140.82.112.0", "192.168.1.100", "127.0.0.1", "::1"),  # Include localhost IPs
     rate_limit_enabled = TRUE,
     rate_limit_requests = 50,
     rate_limit_window_seconds = 3600
@@ -101,17 +101,29 @@ test_that("webhook endpoint simulation with full security", {
   logs <- payload_logs()
   expect_true(length(logs) > 0)
 
-  # Reset security config
+  # Reset security config completely
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
-    rate_limit_enabled = FALSE
+    ip_blacklist = NULL,
+    rate_limit_enabled = FALSE,
+    rate_limit_requests = 100,
+    rate_limit_window_seconds = 3600
   )
+  payload_security_clear_rate_limits()
 })
 
 test_that("full workflow integration test", {
   skip_on_cran()
   skip_if_not_installed("shiny")
+
+  # Reset security configuration
+  payload_security_config(
+    hmac_secret = NULL,
+    ip_whitelist = NULL,
+    ip_blacklist = NULL,
+    rate_limit_enabled = FALSE
+  )
 
   # Create a simple UI
   base_ui <- shiny::fluidPage(
@@ -139,7 +151,7 @@ test_that("full workflow integration test", {
 test_that("POST request flow works end-to-end", {
   skip_on_cran()
 
-  # Reset security configuration to avoid interference from other tests
+  # Reset security configuration completely
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -194,7 +206,7 @@ test_that("POST request flow works end-to-end", {
 test_that("authentication flow works correctly", {
   skip_on_cran()
 
-  # Reset security configuration
+  # Reset security configuration completely
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -242,7 +254,7 @@ test_that("authentication flow works correctly", {
 test_that("different content types are handled", {
   skip_on_cran()
 
-  # Reset security configuration
+  # Reset security configuration completely
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -288,7 +300,7 @@ test_that("different content types are handled", {
 test_that("error handling in POST processing", {
   skip_on_cran()
 
-  # Reset security configuration
+  # Reset security configuration completely
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -332,6 +344,14 @@ test_that("error handling in POST processing", {
 
 test_that("state isolation between paths", {
   skip_on_cran()
+
+  # Reset security configuration
+  payload_security_config(
+    hmac_secret = NULL,
+    ip_whitelist = NULL,
+    ip_blacklist = NULL,
+    rate_limit_enabled = FALSE
+  )
 
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/path1", token = NULL)
