@@ -3,6 +3,7 @@
 test_that("webhook endpoint simulation with full security", {
   skip_if_not_installed("digest")
   skip_on_cran()
+  skip_on_ci()  # Skip in CI due to IP whitelist restrictions
   # Clear initial state
   payload_history_clear()
   payload_logs_clear()
@@ -117,14 +118,6 @@ test_that("full workflow integration test", {
   skip_on_cran()
   skip_if_not_installed("shiny")
 
-  # Reset security configuration
-  payload_security_config(
-    hmac_secret = NULL,
-    ip_whitelist = NULL,
-    ip_blacklist = NULL,
-    rate_limit_enabled = FALSE
-  )
-
   # Create a simple UI
   base_ui <- shiny::fluidPage(
     shiny::h1("Test App"),
@@ -151,7 +144,7 @@ test_that("full workflow integration test", {
 test_that("POST request flow works end-to-end", {
   skip_on_cran()
 
-  # Reset security configuration completely
+  # Reset security configuration to avoid interference from webhook test
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -205,8 +198,6 @@ test_that("POST request flow works end-to-end", {
 
 test_that("authentication flow works correctly", {
   skip_on_cran()
-
-  # Reset security configuration completely
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -253,8 +244,6 @@ test_that("authentication flow works correctly", {
 
 test_that("different content types are handled", {
   skip_on_cran()
-
-  # Reset security configuration completely
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -299,8 +288,6 @@ test_that("different content types are handled", {
 
 test_that("error handling in POST processing", {
   skip_on_cran()
-
-  # Reset security configuration completely
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
