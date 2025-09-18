@@ -144,7 +144,7 @@
 
 .apply_retention_policies <- function(history_list) {
   if (length(history_list) == 0) {
-  history_list
+    return(history_list)
   }
 
   config <- .shinypayload_state$config
@@ -160,7 +160,7 @@
     entry$timestamp > cutoff_time
   }, history_list)
 
-  history_list
+  return(history_list)
 }
 
 .get_payload_history <- function(path, limit = NULL, since = NULL) {
@@ -182,7 +182,7 @@
     history_list <- history_list[1:limit]
   }
 
-  history_list
+  return(history_list)
 }
 
 .get_version <- function(path) {
@@ -205,7 +205,7 @@
 
 .read_request_body <- function(rook_input) {
   if (is.null(rook_input)) {
-  raw(0)
+    return(raw(0))
   }
 
   body_parts <- list()
@@ -216,14 +216,14 @@
   }
 
   if (length(body_parts) == 0) {
-  raw(0)
+    return(raw(0))
   }
-  do.call(c, body_parts)
+  return(do.call(c, body_parts))
 }
 
 .parse_request_body <- function(req, body_raw) {
   if (length(body_raw) == 0) {
-  NULL
+    return(NULL)
   }
 
   content_type <- req$HTTP_CONTENT_TYPE %||%
@@ -296,7 +296,7 @@
     # Simple XML to list conversion
     children <- xml2::xml_children(xml_node)
     if (length(children) == 0) {
-  xml2::xml_text(xml_node)
+      return(xml2::xml_text(xml_node))
     }
 
     result <- list()
@@ -313,9 +313,9 @@
         result[[name]] <- value
       }
     }
-  result
+    return(result)
   }
-  NULL
+  return(NULL)
 }
 
 .parse_multipart_content <- function(req, body_raw) {
@@ -366,7 +366,7 @@
 # Security helper functions
 .check_hmac_signature <- function(req, body_raw, secret_key) {
   if (is.null(secret_key) || secret_key == "") {
-  TRUE
+    return(TRUE)
   }
 
   # Get signature from header
@@ -375,7 +375,7 @@
     req$HEADERS[["x-signature-256"]]
 
   if (is.null(signature_header)) {
-  FALSE
+    return(FALSE)
   }
 
   # Handle different signature formats
@@ -400,10 +400,10 @@
       raw = FALSE
     )
 
-  identical(signature, expected_signature)
+    return(identical(signature, expected_signature))
   } else {
     warning("digest package not available for HMAC validation")
-  TRUE
+    return(TRUE)
   }
 }
 
@@ -414,25 +414,25 @@
   # Check whitelist (if specified, only allow listed IPs)
   if (!is.null(config$ip_whitelist) && length(config$ip_whitelist) > 0) {
     if (!remote_ip %in% config$ip_whitelist) {
-  FALSE
+      return(FALSE)
     }
   }
 
   # Check blacklist (deny listed IPs)
   if (!is.null(config$ip_blacklist) && length(config$ip_blacklist) > 0) {
     if (remote_ip %in% config$ip_blacklist) {
-  FALSE
+      return(FALSE)
     }
   }
 
-  TRUE
+  return(TRUE)
 }
 
 .check_rate_limit <- function(req) {
   config <- .shinypayload_state$config
 
   if (!config$rate_limit_enabled) {
-  TRUE
+    return(TRUE)
   }
 
   remote_ip <- req$REMOTE_ADDR %||% "unknown"
@@ -450,7 +450,7 @@
 
   # Check if limit exceeded
   if (length(recent_requests) >= config$rate_limit_requests) {
-  FALSE
+    return(FALSE)
   }
 
   # Add current request timestamp
@@ -459,18 +459,18 @@
   # Store updated request list
   assign(ip_key, recent_requests, envir = .shinypayload_state$rate_limits)
 
-  TRUE
+  return(TRUE)
 }
 
 .check_auth <- function(req, token) {
   if (is.null(token) || token == "") {
-  TRUE
+    return(TRUE)
   }
 
   # Check query parameter
   query_params <- shiny::parseQueryString(req$QUERY_STRING %||% "")
   if (identical(query_params$token, token)) {
-  TRUE
+    return(TRUE)
   }
 
   # Check headers
@@ -478,16 +478,16 @@
 
   # Check X-Ingress-Token header
   if (identical(headers[["x-ingress-token"]], token)) {
-  TRUE
+    return(TRUE)
   }
 
   # Check Authorization header
   auth_header <- headers[["authorization"]] %||% req$HTTP_AUTHORIZATION
   if (identical(auth_header, token)) {
-  TRUE
+    return(TRUE)
   }
 
-  FALSE
+  return(FALSE)
 }
 
 #' Wrap an existing UI with an integrated POST handler on the same port
@@ -1030,7 +1030,7 @@ payload_history_clear <- function(path = NULL) {
       rm(list = key, envir = .shinypayload_state$history)
     }
 
-  total_count
+    return(total_count)
   } else {
     # Clear history for specific path
     stopifnot(
@@ -1046,7 +1046,7 @@ payload_history_clear <- function(path = NULL) {
       rm(list = key, envir = .shinypayload_state$history)
     }
 
-  count
+    return(count)
   }
 }
 
@@ -1243,7 +1243,7 @@ payload_security_clear_rate_limits <- function(ip_address = NULL) {
       rm(list = all_keys, envir = .shinypayload_state$rate_limits)
     }
 
-  count
+    return(count)
   } else {
     # Clear rate limits for specific IP
     stopifnot(
@@ -1254,9 +1254,9 @@ payload_security_clear_rate_limits <- function(ip_address = NULL) {
     ip_key <- paste0("rate_limit:", ip_address)
     if (exists(ip_key, envir = .shinypayload_state$rate_limits)) {
       rm(list = ip_key, envir = .shinypayload_state$rate_limits)
-  1
+      return(1)
     } else {
-  0
+      return(0)
     }
   }
 }
@@ -1656,7 +1656,7 @@ payload_batch <- function(path = "/ingress", session, batch_size = 10,
         batch_data(list()) # Clear batch
         batch_start_time(NULL)
 
-  Sys.time()
+        return(Sys.time())
       }
 
       # Add new payloads to batch
@@ -1823,7 +1823,7 @@ payload_logs_clear <- function(level = NULL) {
     if (count > 0) {
       rm(list = all_log_keys, envir = .shinypayload_state$logs)
     }
-  count
+    return(count)
   } else {
     # Clear logs of specific level
     logs_to_remove <- character(0)
@@ -1839,7 +1839,7 @@ payload_logs_clear <- function(level = NULL) {
       rm(list = logs_to_remove, envir = .shinypayload_state$logs)
     }
 
-  length(logs_to_remove)
+    return(length(logs_to_remove))
   }
 }
 
