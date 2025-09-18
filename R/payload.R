@@ -623,14 +623,14 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
     if (is.function(base_ui)) {
       # Check if base_ui accepts a request parameter
       if (length(formals(base_ui)) >= 1) {
-  base_ui(req)
+        base_ui(req)
       } else {
-  base_ui()
+        base_ui()
       }
     }
 
     # Return static UI
-  base_ui
+    base_ui
   }
 
   # CRITICAL: Tell Shiny this function handles POST requests
@@ -794,14 +794,14 @@ payload_methods <- function(base_ui, endpoints) {
     # Handle regular UI requests (no endpoint matched)
     if (is.function(base_ui)) {
       if (length(formals(base_ui)) >= 1) {
-  base_ui(req)
+        base_ui(req)
       } else {
-  base_ui()
+        base_ui()
       }
     }
 
     # Return static UI
-  base_ui
+    base_ui
   }
 
   # Extract all supported methods from endpoints
@@ -854,7 +854,7 @@ setup_payload_endpoint <- function(path = "/ingress", session, token = NULL) {
     .store_payload(path, list(payload = payload, meta = meta))
 
     # Return success response
-  .create_ok_response()
+    .create_ok_response()
   }
 
   # Register the endpoint with Shiny
@@ -1555,7 +1555,7 @@ payload_conditional <- function(path = "/ingress", session, condition_func,
 
           if (meets_condition) {
             last_qualifying_version(current_version)
-  current_version
+            current_version
           }
         }
       }
@@ -1675,7 +1675,7 @@ payload_batch <- function(path = "/ingress", session, batch_size = 10,
         }
       }
 
-  last_processed_version()
+      last_processed_version()
     },
     valueFunc = function() {
       batch_result()
@@ -1769,7 +1769,7 @@ payload_logs <- function(level = NULL, limit = 50, since = NULL) {
   all_log_keys <- ls(envir = .shinypayload_state$logs)
 
   if (length(all_log_keys) == 0) {
-  list()
+    list()
   }
 
   # Get all log entries
