@@ -198,6 +198,9 @@ test_that("POST request flow works end-to-end", {
 
 test_that("authentication flow works correctly", {
   skip_on_cran()
+
+  # Clear HMAC signature validation
+  payload_security_config(hmac_secret = NULL)
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -244,6 +247,9 @@ test_that("authentication flow works correctly", {
 
 test_that("different content types are handled", {
   skip_on_cran()
+
+  # Clear HMAC signature validation
+  payload_security_config(hmac_secret = NULL)
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -288,6 +294,9 @@ test_that("different content types are handled", {
 
 test_that("error handling in POST processing", {
   skip_on_cran()
+
+  # Clear HMAC signature validation
+  payload_security_config(hmac_secret = NULL)
   payload_security_config(
     hmac_secret = NULL,
     ip_whitelist = NULL,
@@ -332,13 +341,8 @@ test_that("error handling in POST processing", {
 test_that("state isolation between paths", {
   skip_on_cran()
 
-  # Reset security configuration
-  payload_security_config(
-    hmac_secret = NULL,
-    ip_whitelist = NULL,
-    ip_blacklist = NULL,
-    rate_limit_enabled = FALSE
-  )
+  # Clear HMAC signature validation
+  payload_security_config(hmac_secret = NULL)
 
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/path1", token = NULL)

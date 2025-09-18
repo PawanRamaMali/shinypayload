@@ -79,6 +79,10 @@ test_that("payload_ui handles authentication", {
 
 test_that("payload_ui handles POST requests with valid token", {
   skip_on_cran()
+
+  # Clear HMAC signature validation that might be left over from webhook test
+  payload_security_config(hmac_secret = NULL)
+
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "secret")
 

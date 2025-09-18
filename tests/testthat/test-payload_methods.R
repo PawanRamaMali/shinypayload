@@ -26,6 +26,9 @@ test_that("payload_methods validates input correctly", {
 
 test_that("payload_methods handles different HTTP methods correctly", {
   skip_on_cran()
+
+  # Clear HMAC signature validation
+  payload_security_config(hmac_secret = NULL)
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   endpoints <- list(
     list(path = "/api/data", methods = c("POST", "PUT", "PATCH")),
@@ -154,6 +157,9 @@ test_that("payload_methods handles authentication per endpoint", {
 
 test_that("payload_methods handles body parsing for different methods", {
   skip_on_cran()
+
+  # Clear HMAC signature validation
+  payload_security_config(hmac_secret = NULL)
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   endpoints <- list(
     list(path = "/api/data", methods = c("POST", "PUT", "PATCH"))
@@ -200,6 +206,9 @@ test_that("payload_methods handles body parsing for different methods", {
 
 test_that("payload_methods handles edge cases and errors", {
   skip_on_cran()
+
+  # Clear HMAC signature validation
+  payload_security_config(hmac_secret = NULL)
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
 
   # Edge case: very long endpoint list
