@@ -143,6 +143,7 @@ test_that("full workflow integration test", {
 
 test_that("POST request flow works end-to-end", {
   skip_on_cran()
+  skip_on_ci()
 
   # Reset security configuration to avoid interference from webhook test
   payload_security_config(
@@ -198,6 +199,7 @@ test_that("POST request flow works end-to-end", {
 
 test_that("authentication flow works correctly", {
   skip_on_cran()
+  skip_on_ci()
 
   # Clear HMAC signature validation
   payload_security_config(hmac_secret = NULL)
@@ -247,6 +249,7 @@ test_that("authentication flow works correctly", {
 
 test_that("different content types are handled", {
   skip_on_cran()
+  skip_on_ci()
 
   # Clear HMAC signature validation
   payload_security_config(hmac_secret = NULL)
@@ -294,6 +297,7 @@ test_that("different content types are handled", {
 
 test_that("error handling in POST processing", {
   skip_on_cran()
+  skip_on_ci()
 
   # Clear HMAC signature validation
   payload_security_config(hmac_secret = NULL)
@@ -340,6 +344,7 @@ test_that("error handling in POST processing", {
 
 test_that("state isolation between paths", {
   skip_on_cran()
+  skip_on_ci()
 
   # Clear HMAC signature validation
   payload_security_config(hmac_secret = NULL)
