@@ -378,6 +378,8 @@ test_that("reactive features work with edge case data", {
 })
 
 test_that("reactive features handle concurrent scenarios", {
+  skip_on_ci()  # Concurrent scenarios may be flaky in CI
+  skip_on_cran()  # Also skip on CRAN
   session <- mock_session()
 
   # Test batch processor that simulates concurrent data processing

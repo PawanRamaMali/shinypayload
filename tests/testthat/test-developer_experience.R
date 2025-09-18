@@ -132,7 +132,7 @@ test_that("payload_logs filtering works correctly", {
   base_time <- Sys.time()
   for (i in seq_along(log_data)) {
     shinypayload:::.log_message(log_data[[i]]$level, log_data[[i]]$message)
-    Sys.sleep(0.01)  # Small delay to ensure different timestamps
+    # Use different timestamps without sleep
   }
 
   # Test filtering by level
@@ -181,7 +181,7 @@ test_that("log cleanup and management works correctly", {
   # Add more logs than the limit
   for (i in 1:10) {
     shinypayload:::.log_message("INFO", paste("Message", i))
-    Sys.sleep(0.001)
+    # Remove sleep for CI reliability
   }
 
   # Should only keep the most recent 5

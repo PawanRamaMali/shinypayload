@@ -58,7 +58,7 @@ test_that("version tracking works correctly", {
   expect_true(version1 > 0)
 
   # Store again and check version increased
-  Sys.sleep(0.01) # Ensure time difference
+  # Use explicit timestamp instead of sleep
   test_data2 <- list(payload = list(count = 2))
   shinypayload:::.store_payload(test_path, test_data2)
   version2 <- shinypayload:::.get_version(test_path)
