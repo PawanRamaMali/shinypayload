@@ -1,7 +1,7 @@
 # Tests for payload_ui function
 
 test_that("payload_ui creates a function", {
-  base_ui <- fluidPage(h1("Test"))
+  base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/test", token = "secret")
 
   expect_true(is.function(ui))
@@ -9,7 +9,7 @@ test_that("payload_ui creates a function", {
 })
 
 test_that("payload_ui validates path parameter", {
-  base_ui <- fluidPage(h1("Test"))
+  base_ui <- shiny::fluidPage(shiny::h1("Test"))
 
   # Valid path
   expect_silent(payload_ui(base_ui, path = "/test"))
@@ -22,23 +22,23 @@ test_that("payload_ui validates path parameter", {
 
 test_that("payload_ui handles different UI types", {
   # Static UI
-  static_ui <- fluidPage(h1("Static"))
+  static_ui <- shiny::fluidPage(shiny::h1("Static"))
   ui1 <- payload_ui(static_ui, path = "/test")
   expect_true(is.function(ui1))
 
   # Function UI (no parameters)
-  func_ui_no_params <- function() fluidPage(h1("Function"))
+  func_ui_no_params <- function() shiny::fluidPage(shiny::h1("Function"))
   ui2 <- payload_ui(func_ui_no_params, path = "/test")
   expect_true(is.function(ui2))
 
   # Function UI (with req parameter)
-  func_ui_with_req <- function(req) fluidPage(h1("Function with req"))
+  func_ui_with_req <- function(req) shiny::fluidPage(shiny::h1("Function with req"))
   ui3 <- payload_ui(func_ui_with_req, path = "/test")
   expect_true(is.function(ui3))
 })
 
 test_that("payload_ui processes POST requests correctly", {
-  base_ui <- fluidPage(h1("Test"))
+  base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "test-token")
 
   # Mock GET request - should return UI
@@ -59,7 +59,8 @@ test_that("payload_ui processes POST requests correctly", {
 })
 
 test_that("payload_ui handles authentication", {
-  base_ui <- fluidPage(h1("Test"))
+  skip_on_cran()
+  base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "secret")
 
   # Mock POST request without token - should return 401
@@ -77,7 +78,8 @@ test_that("payload_ui handles authentication", {
 })
 
 test_that("payload_ui handles POST requests with valid token", {
-  base_ui <- fluidPage(h1("Test"))
+  skip_on_cran()
+  base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui <- payload_ui(base_ui, path = "/ingress", token = "secret")
 
   # Mock successful POST request

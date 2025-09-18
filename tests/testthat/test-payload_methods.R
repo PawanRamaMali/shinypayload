@@ -1,4 +1,5 @@
 test_that("payload_methods validates input correctly", {
+  skip_on_cran()
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
 
   # Should fail with invalid inputs
@@ -24,6 +25,7 @@ test_that("payload_methods validates input correctly", {
 })
 
 test_that("payload_methods handles different HTTP methods correctly", {
+  skip_on_cran()
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   endpoints <- list(
     list(path = "/api/data", methods = c("POST", "PUT", "PATCH")),
@@ -85,6 +87,7 @@ test_that("payload_methods handles different HTTP methods correctly", {
 })
 
 test_that("payload_methods handles authentication per endpoint", {
+  skip_on_cran()
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   endpoints <- list(
     list(path = "/public", methods = "POST"),  # no token
@@ -150,6 +153,7 @@ test_that("payload_methods handles authentication per endpoint", {
 })
 
 test_that("payload_methods handles body parsing for different methods", {
+  skip_on_cran()
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   endpoints <- list(
     list(path = "/api/data", methods = c("POST", "PUT", "PATCH"))
@@ -195,6 +199,7 @@ test_that("payload_methods handles body parsing for different methods", {
 })
 
 test_that("payload_methods handles edge cases and errors", {
+  skip_on_cran()
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
 
   # Edge case: very long endpoint list

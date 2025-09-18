@@ -35,6 +35,7 @@ test_that("payload_security_config validates inputs correctly", {
 test_that("HMAC signature validation works correctly", {
   # Skip if digest package not available
   skip_if_not_installed("digest")
+  skip_on_cran()
 
   secret_key <- "test-webhook-secret"
   payload_security_config(hmac_secret = secret_key)
@@ -199,6 +200,7 @@ test_that("security clear functions work correctly", {
 test_that("security integration with payload_ui works", {
   # Skip if digest package not available
   skip_if_not_installed("digest")
+  skip_on_cran()
 
   base_ui <- shiny::fluidPage(shiny::h1("Test"))
   ui_func <- payload_ui(base_ui, "/secure", "test-token")
@@ -328,6 +330,7 @@ test_that("security handles attack scenarios", {
 test_that("HMAC validation handles edge cases and attacks", {
   # Skip if digest package not available
   skip_if_not_installed("digest")
+  skip_on_cran()
 
   secret_key <- "very-secret-key"
   payload_security_config(hmac_secret = secret_key)
@@ -362,8 +365,8 @@ test_that("HMAC validation handles edge cases and attacks", {
     "sha256=",  # Empty signature
     "invalidformat",  # No algorithm prefix
     "sha256=short",  # Too short
-    "sha256=" + paste(rep("a", 128), collapse = ""),  # Wrong length
-    "md5=" + correct_sig  # Wrong algorithm
+    paste0("sha256=", paste(rep("a", 128), collapse = "")),  # Wrong length
+    paste0("md5=", correct_sig)  # Wrong algorithm
   )
 
   for (bad_sig in malformed_sigs) {

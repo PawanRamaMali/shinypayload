@@ -1,4 +1,6 @@
 test_that("payload storage handles high volume correctly", {
+  skip_on_cran()
+  skip("Performance test - resource intensive")
   # Clear existing data
   payload_history_clear()
 
@@ -64,6 +66,8 @@ test_that("payload storage handles high volume correctly", {
 })
 
 test_that("payload history retrieval is efficient with large datasets", {
+  skip_on_cran()
+  skip("Performance test - resource intensive")
   # Clear and setup
   payload_history_clear()
   payload_history_config(max_items = 2000, max_age_hours = 2)
@@ -125,6 +129,8 @@ test_that("payload history retrieval is efficient with large datasets", {
 })
 
 test_that("rate limiting performs well under load", {
+  skip_on_cran()
+  skip("Performance test - resource intensive")
   # Clear rate limits
   payload_security_clear_rate_limits()
 
@@ -183,6 +189,7 @@ test_that("rate limiting performs well under load", {
 })
 
 test_that("logging system handles high volume efficiently", {
+  skip("Performance test - resource intensive")
   # Clear logs and configure
   payload_logs_clear()
   payload_debug_config(debug_mode = FALSE, log_level = "INFO", max_log_entries = 5000)
@@ -242,6 +249,7 @@ test_that("logging system handles high volume efficiently", {
 })
 
 test_that("data processing handles large payloads efficiently", {
+  skip("Performance test - resource intensive")
   # Test with various large payload sizes
   payload_sizes <- c(1024, 10240, 102400, 1048576)  # 1KB to 1MB
 
@@ -319,6 +327,8 @@ test_that("data processing handles large payloads efficiently", {
 })
 
 test_that("memory usage remains reasonable under load", {
+  skip_on_cran()
+  skip("Performance test - resource intensive")
   # Clear all data
   payload_history_clear()
   payload_logs_clear()
@@ -412,6 +422,7 @@ test_that("memory usage remains reasonable under load", {
 })
 
 test_that("concurrent access simulation performs well", {
+  skip("Performance test - resource intensive")
   # This test simulates concurrent access patterns
   # Clear state
   payload_history_clear()
