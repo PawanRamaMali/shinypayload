@@ -39,9 +39,52 @@ reference:
   contents:
   - payload_ui
   - payload_last
-  - params_get  
+  - params_get
   - payload_endpoint_url
   - setup_payload_endpoint
+
+- title: "Request Methods"
+  desc: "Functions for handling different HTTP methods and request patterns"
+  contents:
+  - payload_methods
+  - payload_stream
+  - payload_conditional
+  - payload_batch
+
+- title: "History Management"
+  desc: "Functions for managing request history"
+  contents:
+  - payload_history
+  - payload_history_config
+  - payload_history_clear
+  - payload_history_stats
+
+- title: "Security Configuration"
+  desc: "Functions for managing security settings"
+  contents:
+  - payload_security_config
+  - payload_security_status
+  - payload_security_clear_rate_limits
+
+- title: "Data Management"
+  desc: "Functions for managing payload data"
+  contents:
+  - payload_data_config
+  - payload_data_status
+  - payload_data_clear
+
+- title: "Debugging and Logging"
+  desc: "Functions for debugging and logging"
+  contents:
+  - payload_debug_config
+  - payload_debug_status
+  - payload_logs
+  - payload_logs_clear
+
+- title: "System Status"
+  desc: "Functions for monitoring system status"
+  contents:
+  - payload_system_status
 
 news:
   releases:
