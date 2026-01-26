@@ -73,6 +73,46 @@ reference:
   - payload_data_status
   - payload_data_clear
 
+- title: "CORS Configuration"
+  desc: "Cross-Origin Resource Sharing (CORS) settings"
+  contents:
+  - payload_cors_config
+  - payload_cors_status
+
+- title: "Health Check"
+  desc: "Built-in health check endpoint for container orchestration"
+  contents:
+  - payload_health_config
+  - payload_health_status
+
+- title: "Custom Responses"
+  desc: "Configure custom response handlers for endpoints"
+  contents:
+  - payload_response_config
+  - payload_response_status
+
+- title: "Schema Validation"
+  desc: "JSON Schema validation for incoming payloads"
+  contents:
+  - payload_schema_config
+  - payload_schema_status
+
+- title: "Async Queue Processing"
+  desc: "Deferred payload processing with retry and dead letter queue"
+  contents:
+  - payload_queue_config
+  - payload_queue
+  - payload_queue_process
+  - payload_queue_status
+  - payload_queue_clear
+  - payload_queue_dead_letter
+
+- title: "Upload Configuration"
+  desc: "Multipart form and file upload settings"
+  contents:
+  - payload_upload_config
+  - payload_upload_status
+
 - title: "Debugging and Logging"
   desc: "Functions for debugging and logging"
   contents:

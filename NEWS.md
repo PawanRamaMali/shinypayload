@@ -1,3 +1,80 @@
+# shinypayload 0.3.0
+
+## New Features
+
+### Custom Response Handling
+* **`response_handler` parameter** - Configure custom response content, status codes, and headers per endpoint
+* **`payload_response_config()`** - Set response handlers dynamically at runtime
+* **`payload_response_status()`** - Query configured response handlers
+* Responses can now return computed values, custom HTTP status codes, and additional headers
+
+### Complete Multipart Form Data Support
+* Full RFC 2046 multipart boundary parsing implementation
+* File upload extraction with filename, content-type, and size metadata
+* Form field extraction from multipart requests
+* **`payload_upload_config()`** - Configure maximum upload size limits
+* **`payload_upload_status()`** - Query current upload configuration
+
+### Cross-Origin Resource Sharing (CORS)
+* **`payload_cors_config()`** - Enable and configure CORS with allowed origins, methods, headers
+* **`payload_cors_status()`** - Query current CORS configuration
+* Automatic OPTIONS preflight request handling
+* Support for credentials and configurable max-age caching
+
+### Session-Scoped Payloads
+* **`scope` parameter** in `payload_last()` - Choose between "global" and "session" scope
+* Session-isolated data storage for per-user workflows
+* Backward compatible with existing global scope behavior
+
+### Request Correlation IDs
+* Automatic generation or extraction of `X-Request-ID` header
+* Correlation ID included in all log entries for distributed tracing
+* Correlation ID returned in responses for request tracking
+* Filter logs and history by correlation ID
+
+### Built-in Health Check Endpoint
+* **`payload_health_config()`** - Configure health check path and enable/disable
+* **`payload_health_status()`** - Query health check configuration
+* Returns system status, uptime, endpoint count, queue status, memory usage
+* Compatible with Kubernetes liveness/readiness probes
+
+### JSON Schema Validation
+* **`payload_schema_config()`** - Configure JSON Schema for payload validation
+* **`payload_schema_status()`** - Query configured schemas
+* Automatic 400 Bad Request responses for invalid payloads
+* Detailed validation errors in debug mode
+* Requires optional `jsonvalidate` package
+
+### Asynchronous Processing Pipeline
+* **`payload_queue_config()`** - Enable and configure async queue processing
+* **`payload_queue()`** - Enqueue payloads for deferred processing
+* **`payload_queue_process()`** - Process queued items with custom handler
+* **`payload_queue_status()`** - Query queue statistics
+* **`payload_queue_clear()`** - Clear pending queue items
+* **`payload_queue_dead_letter()`** - Access failed processing items
+* Priority-based queue ordering (high/normal/low)
+* Configurable retry attempts with dead letter queue
+
+## Improvements
+
+* Enhanced logging with correlation ID support
+* Better error responses with correlation IDs and debug details
+* Improved multipart content-type detection
+* Request counter and uptime tracking in system status
+* Extended `payload_system_status()` with CORS, health, and queue information
+
+## New Dependencies
+
+* **jsonvalidate** (suggested) - For JSON Schema validation
+
+## Backward Compatibility
+
+* All existing v0.2.0 functions remain unchanged
+* New parameters have default values maintaining existing behavior
+* Seamless upgrade path from v0.2.0
+
+---
+
 # shinypayload 0.2.0
 
 ## Major New Features

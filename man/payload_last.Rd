@@ -4,7 +4,8 @@
 \alias{payload_last}
 \title{Get a reactive that polls for new payload data}
 \usage{
-payload_last(path = "/ingress", session, intervalMillis = 300)
+payload_last(path = "/ingress", session, intervalMillis = 300,
+  scope = c("global", "session"))
 }
 \arguments{
 \item{path}{The URL path used in payload_ui() (default "/ingress")}
@@ -12,6 +13,9 @@ payload_last(path = "/ingress", session, intervalMillis = 300)
 \item{session}{The Shiny session object}
 
 \item{intervalMillis}{Polling interval in milliseconds (default 300)}
+
+\item{scope}{Data scope: "global" (shared across sessions, default) or
+"session" (isolated per session)}
 }
 \value{
 A reactive expression (class "reactive") that returns a list with two
@@ -25,10 +29,14 @@ Get a reactive that polls for new payload data
 \examples{
 if (interactive()) {
   server <- function(input, output, session) {
-    latest_data <- payload_last("/data", session)
+    # Global scope - data shared across all sessions
+    global_data <- payload_last("/data", session)
 
-    observeEvent(latest_data(), {
-      data <- latest_data()
+    # Session scope - data isolated to this session only
+    session_data <- payload_last("/user-data", session, scope = "session")
+
+    observeEvent(global_data(), {
+      data <- global_data()
       if (!is.null(data)) {
         print(data$payload)
         print(data$meta$timestamp)

@@ -31,7 +31,7 @@ test_that("payload_methods validates input correctly", {
   )
   ui_func <- payload_methods(base_ui, endpoints)
   expect_true(is.function(ui_func))
-  expect_equal(attr(ui_func, "http_methods_supported"), c("GET", "POST", "PUT", "DELETE"))
+  expect_equal(attr(ui_func, "http_methods_supported"), c("GET", "OPTIONS", "POST", "PUT", "DELETE"))
 })
 
 test_that("payload_methods handles different HTTP methods correctly", {
@@ -60,7 +60,8 @@ test_that("payload_methods handles different HTTP methods correctly", {
   response_post <- ui_func(req_post)
   expect_equal(response_post$status, 201L)
   expect_equal(response_post$content_type, "application/json")
-  expect_equal(response_post$content, '{"ok":true}')
+  # v0.3.0: Response now includes correlation_id
+  expect_true(grepl('"ok":true', response_post$content))
 
   # Test PUT request - should return 200 status
   req_put <- req_post

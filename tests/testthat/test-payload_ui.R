@@ -5,7 +5,7 @@ test_that("payload_ui creates a function", {
   ui <- payload_ui(base_ui, path = "/test", token = "secret")
 
   expect_true(is.function(ui))
-  expect_equal(attr(ui, "http_methods_supported"), c("GET", "POST"))
+  expect_equal(attr(ui, "http_methods_supported"), c("GET", "POST", "OPTIONS"))
 })
 
 test_that("payload_ui validates path parameter", {
@@ -111,6 +111,7 @@ test_that("payload_ui handles POST requests with valid token", {
 
   result <- ui(post_req_valid)
   expect_true(is.list(result))
-  expect_equal(result$status, 200L)
-  expect_equal(result$content, '{"ok":true}')
+  expect_equal(result$status, 201L)  # v0.3.0: POST returns 201 Created
+  # v0.3.0: Response now includes correlation_id
+  expect_true(grepl('"ok":true', result$content))
 })

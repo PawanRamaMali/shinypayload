@@ -85,8 +85,8 @@ test_that("webhook endpoint simulation with full security", {
   # Process webhook
   response <- ui_func(webhook_request)
 
-  # Verify successful processing
-  expect_equal(response$status, 200L)
+  # Verify successful processing (POST returns 201 Created in v0.3.0)
+  expect_equal(response$status, 201L)
 
   # Verify payload was stored with correct metadata
   webhook_history <- payload_history("/github/webhook")
@@ -129,7 +129,7 @@ test_that("full workflow integration test", {
 
   # Test that UI function is created properly
   expect_true(is.function(ui))
-  expect_equal(attr(ui, "http_methods_supported"), c("GET", "POST"))
+  expect_equal(attr(ui, "http_methods_supported"), c("GET", "POST", "OPTIONS"))
 
   # Test GET request returns UI
   get_req <- list(
@@ -183,11 +183,12 @@ test_that("POST request flow works end-to-end", {
   # Process POST request
   response <- ui(post_req)
 
-  # Verify response
+  # Verify response (POST returns 201 Created in v0.3.0)
   expect_true(is.list(response))
-  expect_equal(response$status, 200L)
+  expect_equal(response$status, 201L)
   expect_equal(response$content_type, "application/json")
-  expect_equal(response$content, '{"ok":true}')
+  # v0.3.0: Response now includes correlation_id
+  expect_true(grepl('"ok":true', response$content))
 
   # Verify data was stored
   stored_data <- shinypayload:::.get_payload_data("/api")
@@ -244,7 +245,7 @@ test_that("authentication flow works correctly", {
   }
 
   response_auth <- ui(auth_req_query)
-  expect_equal(response_auth$status, 200L)
+  expect_equal(response_auth$status, 201L)  # v0.3.0: POST returns 201
 })
 
 test_that("different content types are handled", {
@@ -287,7 +288,7 @@ test_that("different content types are handled", {
   )
 
   response <- ui(form_req)
-  expect_equal(response$status, 200L)
+  expect_equal(response$status, 201L)  # v0.3.0: POST returns 201
 
   # Check stored data
   stored <- shinypayload:::.get_payload_data("/forms")
@@ -334,9 +335,9 @@ test_that("error handling in POST processing", {
     )
   )
 
-  # Should still return 200 but store the raw text
+  # Should still return 201 (POST) but store the raw text
   response <- ui(bad_json_req)
-  expect_equal(response$status, 200L)
+  expect_equal(response$status, 201L)  # v0.3.0: POST returns 201
 
   stored <- shinypayload:::.get_payload_data("/error-test")
   expect_true(is.character(stored$payload))

@@ -248,7 +248,7 @@ test_that("security integration with payload_ui works", {
   )
 
   response_valid <- ui_func(req_valid)
-  expect_equal(response_valid$status, 200L)
+  expect_equal(response_valid$status, 201L)  # v0.3.0: POST returns 201
 
   # Reset mock input for next test
   mock_input$read <- local({
