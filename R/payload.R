@@ -706,25 +706,26 @@
   # Check upload size limit
   if (length(body_raw) > config$max_upload_size) {
     return(list(
+      type = "multipart/form-data",
       error = "Payload too large",
       size_bytes = length(body_raw),
-      max_allowed = config$max_upload_size
+      max_allowed = config$max_upload_size,
+      boundary = "unknown",
+      raw_data = body_raw
     ))
   }
 
-  content_type_header <- req$HTTP_CONTENT_TYPE %||% req$HEADERS[["content-type"]] %||% ""
+  content_type_header <- req$HTTP_CONTENT_TYPE %||%
+    req$HEADERS[["content-type"]] %||% ""
 
   # Extract boundary from content-type header
   boundary_match <- regexpr("boundary=([^;]+)", content_type_header)
   if (boundary_match > 0) {
     boundary <- regmatches(content_type_header, boundary_match)
     boundary <- gsub("boundary=", "", boundary)
-    boundary <- gsub("^\"(.*)\"$", "\\1", boundary)  # Remove quotes if present
+    boundary <- gsub("^\"(.*)\"$", "\\1", boundary) # Remove quotes if present
   } else {
-    return(list(
-      error = "Missing boundary in multipart content-type",
-      content_type = content_type_header
-    ))
+    boundary <- "unknown"
   }
 
   # Parse multipart body
@@ -734,9 +735,11 @@
     },
     error = function(e) {
       list(
+        type = "multipart/form-data",
         error = "Multipart parsing failed",
         message = e$message,
         size_bytes = length(body_raw),
+        boundary = boundary,
         raw_data = body_raw
       )
     }
@@ -757,6 +760,9 @@
 
   result <- list(
     type = "multipart/form-data",
+    boundary = boundary,
+    size_bytes = length(body_raw),
+    raw_data = body_raw,
     parts = list(),
     files = list(),
     fields = list()
