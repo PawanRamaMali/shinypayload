@@ -1,7 +1,7 @@
 Package: shinypayload
 Type: Package
 Title: Accept POST Data and URL Parameters in 'shiny' (Same-Port Integration)
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: person("Pawan Rama", "Mali", email = "prm@outlook.in", role = c("aut", "cre"))
 Author: Pawan Rama Mali [aut, cre]
 Maintainer: Pawan Rama Mali <prm@outlook.in>
@@ -21,7 +21,8 @@ Suggests:
     roxygen2,
     DT,
     digest,
-    xml2
+    xml2,
+    jsonvalidate
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

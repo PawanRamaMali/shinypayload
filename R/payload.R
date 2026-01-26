@@ -5,6 +5,12 @@
 .shinypayload_state$history <- new.env(parent = emptyenv())
 .shinypayload_state$rate_limits <- new.env(parent = emptyenv())
 .shinypayload_state$logs <- new.env(parent = emptyenv())
+.shinypayload_state$session_data <- new.env(parent = emptyenv())
+.shinypayload_state$session_versions <- new.env(parent = emptyenv())
+.shinypayload_state$queue <- new.env(parent = emptyenv())
+.shinypayload_state$dead_letter <- new.env(parent = emptyenv())
+.shinypayload_state$startup_time <- Sys.time()
+.shinypayload_state$request_count <- 0L
 .shinypayload_state$config <- list(
   max_history_items = 100,
   max_history_age_hours = 24,
@@ -15,7 +21,29 @@
   ip_blacklist = NULL,
   debug_mode = FALSE,
   log_level = "INFO",
-  max_log_entries = 1000
+  max_log_entries = 1000,
+  # v0.3.0: CORS configuration
+
+  cors_enabled = FALSE,
+  cors_origins = "*",
+  cors_methods = c("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
+  cors_headers = c("Content-Type", "Authorization", "X-Requested-With", "X-Request-ID"),
+  cors_credentials = FALSE,
+  cors_max_age = 86400,
+  # v0.3.0: Health check configuration
+  health_enabled = TRUE,
+  health_path = "/health",
+  # v0.3.0: Custom response handlers
+  response_handlers = list(),
+  # v0.3.0: JSON Schema validation
+  json_schemas = list(),
+  # v0.3.0: Async queue configuration
+  queue_enabled = FALSE,
+  queue_max_size = 1000,
+  queue_retry_attempts = 3,
+  queue_retry_delay_ms = 1000,
+  # v0.3.0: Multipart configuration
+  max_upload_size = 10 * 1024 * 1024  # 10MB default
 )
 
 # Null-coalescing operator
@@ -31,9 +59,14 @@
   target_level >= current_level
 }
 
-.log_message <- function(level, message, path = NULL, req = NULL) {
+.log_message <- function(level, message, path = NULL, req = NULL, correlation_id = NULL) {
   if (!.should_log(level)) {
     return()
+  }
+
+  # Extract or generate correlation ID
+  if (is.null(correlation_id) && !is.null(req)) {
+    correlation_id <- .get_correlation_id(req)
   }
 
   log_entry <- list(
@@ -41,6 +74,7 @@
     level = level,
     message = message,
     path = path,
+    correlation_id = correlation_id,
     remote_addr = if (!is.null(req)) req$REMOTE_ADDR %||% "unknown" else NULL,
     request_method = if (!is.null(req)) req$REQUEST_METHOD else NULL,
     user_agent = if (!is.null(req)) req$HTTP_USER_AGENT else NULL
@@ -56,12 +90,37 @@
   # Print to console if debug mode
   config <- .shinypayload_state$config
   if (config$debug_mode) {
+    correlation_str <- if (!is.null(correlation_id)) paste0(" [", correlation_id, "]") else ""
     cat(sprintf(
-      "[%s] %s: %s\n",
+      "[%s] %s%s: %s\n",
       format(log_entry$timestamp, "%Y-%m-%d %H:%M:%S"),
-      level, message
+      level, correlation_str, message
     ))
   }
+}
+
+# v0.3.0: Generate or extract correlation ID from request
+.generate_correlation_id <- function() {
+  paste0(
+    format(Sys.time(), "%Y%m%d%H%M%S"),
+    "-",
+    paste0(sample(c(letters, 0:9), 8, replace = TRUE), collapse = "")
+  )
+}
+
+.get_correlation_id <- function(req) {
+  # Check for existing correlation ID in headers
+  correlation_id <- req$HEADERS[["x-request-id"]] %||%
+    req$HEADERS[["x-correlation-id"]] %||%
+    req$HTTP_X_REQUEST_ID %||%
+    req$HTTP_X_CORRELATION_ID
+
+  # Generate new one if not provided
+  if (is.null(correlation_id) || correlation_id == "") {
+    correlation_id <- .generate_correlation_id()
+  }
+
+  correlation_id
 }
 
 .clean_old_logs <- function() {
@@ -82,21 +141,344 @@
   }
 }
 
-.create_error_response <- function(status, error_message, details = NULL) {
+.create_error_response <- function(status, error_message, details = NULL,
+                                   correlation_id = NULL) {
   config <- .shinypayload_state$config
 
   content <- list(error = error_message)
+
+  if (!is.null(correlation_id)) {
+    content$correlation_id <- correlation_id
+  }
 
   if (config$debug_mode && !is.null(details)) {
     content$details <- details
     content$timestamp <- Sys.time()
   }
 
+  headers <- list("Content-Type" = "application/json")
+  if (!is.null(correlation_id)) {
+    headers[["X-Request-ID"]] <- correlation_id
+  }
+
+  # Add CORS headers if enabled
+  headers <- .add_cors_headers(headers)
+
   return(shiny::httpResponse(
     status = status,
     content_type = "application/json",
+    headers = headers,
     content = jsonlite::toJSON(content, auto_unbox = TRUE)
   ))
+}
+
+# v0.3.0: Custom response creation with configurable content
+.create_custom_response <- function(path, payload, req, correlation_id = NULL) {
+
+  config <- .shinypayload_state$config
+
+  # Check for custom response handler
+  handler <- config$response_handlers[[path]]
+
+  if (!is.null(handler) && is.function(handler)) {
+    # Call custom handler
+    result <- tryCatch(
+      {
+        handler(payload, req)
+      },
+      error = function(e) {
+        .log_message("ERROR", paste("Custom response handler failed:", e$message),
+          path = path, req = req, correlation_id = correlation_id
+        )
+        list(status = 200L, body = list(ok = TRUE))
+      }
+    )
+
+    # Normalize result
+    status <- result$status %||% 200L
+    body <- result$body %||% list(ok = TRUE)
+    content_type <- result$content_type %||% "application/json"
+    custom_headers <- result$headers %||% list()
+
+    # Build content
+    if (content_type == "application/json") {
+      content <- jsonlite::toJSON(body, auto_unbox = TRUE)
+    } else {
+      content <- as.character(body)
+    }
+  } else {
+    # Default response
+    status <- if (req$REQUEST_METHOD == "POST") 201L else 200L
+    body <- list(ok = TRUE)
+    if (!is.null(correlation_id)) {
+      body$correlation_id <- correlation_id
+    }
+    content <- jsonlite::toJSON(body, auto_unbox = TRUE)
+    content_type <- "application/json"
+    custom_headers <- list()
+  }
+
+  # Build headers
+  headers <- c(
+    list("Content-Type" = content_type),
+    custom_headers
+  )
+
+  if (!is.null(correlation_id)) {
+    headers[["X-Request-ID"]] <- correlation_id
+  }
+
+  # Add CORS headers
+  headers <- .add_cors_headers(headers)
+
+  shiny::httpResponse(
+    status = status,
+    content_type = content_type,
+    headers = headers,
+    content = content
+  )
+}
+
+# v0.3.0: CORS headers helper
+.add_cors_headers <- function(headers) {
+  config <- .shinypayload_state$config
+
+  if (!config$cors_enabled) {
+    return(headers)
+  }
+
+  # Add CORS headers
+  origins <- if (is.character(config$cors_origins)) {
+    paste(config$cors_origins, collapse = ", ")
+  } else {
+    "*"
+  }
+
+  headers[["Access-Control-Allow-Origin"]] <- origins
+  headers[["Access-Control-Allow-Methods"]] <- paste(config$cors_methods, collapse = ", ")
+  headers[["Access-Control-Allow-Headers"]] <- paste(config$cors_headers, collapse = ", ")
+  headers[["Access-Control-Max-Age"]] <- as.character(config$cors_max_age)
+
+
+  if (config$cors_credentials) {
+    headers[["Access-Control-Allow-Credentials"]] <- "true"
+  }
+
+  headers
+}
+
+# v0.3.0: CORS preflight response
+.create_cors_preflight_response <- function() {
+  config <- .shinypayload_state$config
+
+  headers <- list()
+  headers <- .add_cors_headers(headers)
+
+  shiny::httpResponse(
+    status = 204L,
+    content_type = "text/plain",
+    headers = headers,
+    content = ""
+  )
+}
+
+# v0.3.0: Health check response
+.create_health_response <- function() {
+  config <- .shinypayload_state$config
+  uptime_seconds <- as.numeric(difftime(Sys.time(), .shinypayload_state$startup_time, units = "secs"))
+
+  # Calculate health metrics
+  data_count <- length(ls(envir = .shinypayload_state$data))
+  queue_count <- length(ls(envir = .shinypayload_state$queue))
+  dead_letter_count <- length(ls(envir = .shinypayload_state$dead_letter))
+
+  health_data <- list(
+    status = "healthy",
+    timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ"),
+    uptime_seconds = round(uptime_seconds, 2),
+    version = "0.3.0",
+    checks = list(
+      endpoints = list(
+        status = "healthy",
+        count = data_count
+      ),
+      queue = list(
+        status = if (queue_count < config$queue_max_size) "healthy" else "degraded",
+        pending = queue_count,
+        dead_letter = dead_letter_count
+      ),
+      memory = list(
+        status = "healthy",
+        total_mb = round(as.numeric(object.size(.shinypayload_state)) / 1024 / 1024, 2)
+      )
+    ),
+    request_count = .shinypayload_state$request_count
+  )
+
+  headers <- list("Content-Type" = "application/json")
+  headers <- .add_cors_headers(headers)
+
+  shiny::httpResponse(
+    status = 200L,
+    content_type = "application/json",
+    headers = headers,
+    content = jsonlite::toJSON(health_data, auto_unbox = TRUE)
+  )
+}
+
+# v0.3.0: JSON Schema validation
+.validate_json_schema <- function(data, path) {
+  config <- .shinypayload_state$config
+
+  schema <- config$json_schemas[[path]]
+  if (is.null(schema)) {
+    return(list(valid = TRUE))
+  }
+
+  # Check if jsonvalidate package is available
+  if (!requireNamespace("jsonvalidate", quietly = TRUE)) {
+    .log_message("WARN", "jsonvalidate package not available for schema validation", path = path)
+    return(list(valid = TRUE, warning = "Schema validation skipped - jsonvalidate not installed"))
+  }
+
+  tryCatch(
+    {
+      # Convert data to JSON for validation
+      json_data <- jsonlite::toJSON(data, auto_unbox = TRUE)
+
+      # Create validator and validate
+      validator <- jsonvalidate::json_validator(schema, engine = "ajv")
+      is_valid <- validator(json_data)
+
+      if (is_valid) {
+        list(valid = TRUE)
+      } else {
+        errors <- attr(is_valid, "errors")
+        list(
+          valid = FALSE,
+          errors = errors
+        )
+      }
+    },
+    error = function(e) {
+      list(valid = FALSE, errors = list(list(message = e$message)))
+    }
+  )
+}
+
+# v0.3.0: Session-specific storage helpers
+.make_session_key <- function(path, session_id) {
+  paste0("session:", session_id, ":", path)
+}
+
+.store_session_payload <- function(path, value, session_id) {
+  key <- .make_session_key(path, session_id)
+
+  assign(key, value, envir = .shinypayload_state$session_data)
+  assign(key, .current_version(), envir = .shinypayload_state$session_versions)
+
+  invisible(TRUE)
+}
+
+.get_session_version <- function(path, session_id) {
+  key <- .make_session_key(path, session_id)
+  get0(key, envir = .shinypayload_state$session_versions, ifnotfound = 0)
+}
+
+.get_session_payload_data <- function(path, session_id) {
+  key <- .make_session_key(path, session_id)
+  get0(key, envir = .shinypayload_state$session_data, ifnotfound = NULL)
+}
+
+# v0.3.0: Queue management helpers
+.enqueue_payload <- function(path, payload, correlation_id = NULL, priority = "normal") {
+  config <- .shinypayload_state$config
+
+  # Check queue size
+  queue_size <- length(ls(envir = .shinypayload_state$queue))
+  if (queue_size >= config$queue_max_size) {
+    return(list(success = FALSE, reason = "Queue full"))
+  }
+
+  queue_item <- list(
+    id = paste0("q_", as.numeric(Sys.time()), "_", sample(10000:99999, 1)),
+    path = path,
+    payload = payload,
+    correlation_id = correlation_id,
+    priority = priority,
+    enqueued_at = Sys.time(),
+    attempts = 0L,
+    status = "pending"
+  )
+
+  assign(queue_item$id, queue_item, envir = .shinypayload_state$queue)
+
+  list(success = TRUE, queue_id = queue_item$id)
+}
+
+.dequeue_payload <- function() {
+  queue_keys <- ls(envir = .shinypayload_state$queue)
+
+  if (length(queue_keys) == 0) {
+    return(NULL)
+  }
+
+  # Get all items and sort by priority and time
+  items <- lapply(queue_keys, function(k) get(k, envir = .shinypayload_state$queue))
+
+  # Filter pending items
+  pending_items <- Filter(function(item) item$status == "pending", items)
+
+  if (length(pending_items) == 0) {
+    return(NULL)
+  }
+
+  # Sort by priority (high > normal > low) then by enqueued time
+  priority_order <- c(high = 1, normal = 2, low = 3)
+  pending_items <- pending_items[order(
+    sapply(pending_items, function(x) priority_order[[x$priority]] %||% 2),
+    sapply(pending_items, function(x) as.numeric(x$enqueued_at))
+  )]
+
+  # Return first item
+  pending_items[[1]]
+}
+
+.mark_queue_item_processing <- function(queue_id) {
+  item <- get0(queue_id, envir = .shinypayload_state$queue)
+  if (!is.null(item)) {
+    item$status <- "processing"
+    item$started_at <- Sys.time()
+    item$attempts <- item$attempts + 1L
+    assign(queue_id, item, envir = .shinypayload_state$queue)
+  }
+}
+
+.mark_queue_item_complete <- function(queue_id) {
+  if (exists(queue_id, envir = .shinypayload_state$queue)) {
+    rm(list = queue_id, envir = .shinypayload_state$queue)
+  }
+}
+
+.mark_queue_item_failed <- function(queue_id, error_message) {
+  config <- .shinypayload_state$config
+
+  item <- get0(queue_id, envir = .shinypayload_state$queue)
+  if (!is.null(item)) {
+    if (item$attempts >= config$queue_retry_attempts) {
+      # Move to dead letter queue
+      item$status <- "dead"
+      item$error <- error_message
+      item$failed_at <- Sys.time()
+      assign(queue_id, item, envir = .shinypayload_state$dead_letter)
+      rm(list = queue_id, envir = .shinypayload_state$queue)
+    } else {
+      # Schedule for retry
+      item$status <- "pending"
+      item$last_error <- error_message
+      assign(queue_id, item, envir = .shinypayload_state$queue)
+    }
+  }
 }
 
 # Internal helper functions
@@ -319,26 +701,155 @@
 }
 
 .parse_multipart_content <- function(req, body_raw) {
-  # Basic multipart parsing - in practice, this would need more sophisticated handling
-  # For now, return a placeholder with information about the upload
-  content_type_header <- req$HTTP_CONTENT_TYPE %||% req$HEADERS[["content-type"]] %||% ""
+  config <- .shinypayload_state$config
+
+  # Check upload size limit
+  if (length(body_raw) > config$max_upload_size) {
+    return(list(
+      type = "multipart/form-data",
+      error = "Payload too large",
+      size_bytes = length(body_raw),
+      max_allowed = config$max_upload_size,
+      boundary = "unknown",
+      raw_data = body_raw
+    ))
+  }
+
+  content_type_header <- req$HTTP_CONTENT_TYPE %||%
+    req$HEADERS[["content-type"]] %||% ""
 
   # Extract boundary from content-type header
   boundary_match <- regexpr("boundary=([^;]+)", content_type_header)
   if (boundary_match > 0) {
     boundary <- regmatches(content_type_header, boundary_match)
     boundary <- gsub("boundary=", "", boundary)
+    boundary <- gsub("^\"(.*)\"$", "\\1", boundary) # Remove quotes if present
   } else {
     boundary <- "unknown"
   }
 
-  list(
+  # Parse multipart body
+  tryCatch(
+    {
+      .parse_multipart_body(body_raw, boundary)
+    },
+    error = function(e) {
+      list(
+        type = "multipart/form-data",
+        error = "Multipart parsing failed",
+        message = e$message,
+        size_bytes = length(body_raw),
+        boundary = boundary,
+        raw_data = body_raw
+      )
+    }
+  )
+}
+
+# v0.3.0: Full multipart body parser
+.parse_multipart_body <- function(body_raw, boundary) {
+  body_str <- rawToChar(body_raw)
+
+  # Split by boundary
+  delimiter <- paste0("--", boundary)
+  parts <- strsplit(body_str, delimiter, fixed = TRUE)[[1]]
+
+  # Remove first empty part and last closing part
+  parts <- parts[nzchar(trimws(parts))]
+  parts <- parts[!grepl("^--\\s*$", parts)]
+
+  result <- list(
     type = "multipart/form-data",
     boundary = boundary,
     size_bytes = length(body_raw),
-    note = "Multipart parsing requires specialized handling - raw data preserved",
-    raw_data = body_raw # Preserve raw data for custom processing
+    raw_data = body_raw,
+    parts = list(),
+    files = list(),
+    fields = list()
   )
+
+  for (part in parts) {
+    # Skip if it's just the closing boundary
+    if (grepl("^--", trimws(part))) next
+
+    # Split headers and content
+    header_body_split <- regexpr("\r\n\r\n|\n\n", part)
+    if (header_body_split < 0) next
+
+    headers_str <- substring(part, 1, header_body_split - 1)
+    content_start <- header_body_split + attr(header_body_split, "match.length")
+    content <- substring(part, content_start)
+
+    # Remove trailing CRLF
+    content <- sub("\r\n$", "", content)
+    content <- sub("\n$", "", content)
+
+    # Parse headers
+    headers <- .parse_multipart_headers(headers_str)
+
+    # Extract Content-Disposition info
+    disposition <- headers[["content-disposition"]] %||% ""
+    name_match <- regexpr('name="([^"]*)"', disposition)
+    filename_match <- regexpr('filename="([^"]*)"', disposition)
+
+    field_name <- if (name_match > 0) {
+      sub('.*name="([^"]*)".*', "\\1", disposition)
+    } else {
+      paste0("field_", length(result$parts) + 1)
+    }
+
+    has_filename <- filename_match > 0
+    filename <- if (has_filename) {
+      sub('.*filename="([^"]*)".*', "\\1", disposition)
+    } else {
+      NULL
+    }
+
+    part_info <- list(
+      name = field_name,
+      headers = headers,
+      content_type = headers[["content-type"]] %||% "text/plain"
+    )
+
+    if (has_filename) {
+      # This is a file upload
+      part_info$filename <- filename
+      part_info$size <- nchar(content, type = "bytes")
+      part_info$content <- charToRaw(content)
+
+      result$files[[field_name]] <- part_info
+    } else {
+      # This is a form field
+      part_info$value <- content
+      result$fields[[field_name]] <- content
+    }
+
+    result$parts <- c(result$parts, list(part_info))
+  }
+
+  result$file_count <- length(result$files)
+  result$field_count <- length(result$fields)
+  result$total_size <- length(body_raw)
+
+  result
+}
+
+# Helper to parse multipart headers
+.parse_multipart_headers <- function(headers_str) {
+  lines <- strsplit(headers_str, "\r\n|\n")[[1]]
+  lines <- lines[nzchar(trimws(lines))]
+
+  headers <- list()
+  for (line in lines) {
+    colon_pos <- regexpr(":", line, fixed = TRUE)
+    if (colon_pos > 0) {
+      name <- tolower(trimws(substring(line, 1, colon_pos - 1)))
+      value <- trimws(substring(line, colon_pos + 1))
+      headers[[name]] <- value
+    }
+  }
+
+  headers
 }
 
 .apply_transformation_hooks <- function(data, content_type, req) {
@@ -494,6 +1005,8 @@
 #' @param base_ui The original UI (tagList, fluidPage, or a function(req) returning UI)
 #' @param path The URL path to handle POST requests (default "/ingress")
 #' @param token Optional authentication token for POST requests
+#' @param response_handler Optional function to customize responses. Should accept (payload, req)
+#'   and return a list with: status, body, content_type, headers (all optional)
 #' @return A function that takes a request object and returns either the regular UI
 #'   (for GET requests) or an HTTP response (for POST requests). This function
 #'   should be passed to shinyApp() as the ui parameter.
@@ -506,44 +1019,87 @@
 #'     token = "secret123"
 #'   )
 #'   shinyApp(ui, server, uiPattern = ".*")
+#'
+#'   # With custom response handler
+#'   ui <- payload_ui(
+#'     fluidPage(h1("My App")),
+#'     path = "/api/process",
+#'     response_handler = function(payload, req) {
+#'       list(
+#'         status = 201L,
+#'         body = list(received = TRUE, id = sample(10000:99999, 1))
+#'       )
+#'     }
+#'   )
 #' }
-payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
+payload_ui <- function(base_ui, path = "/ingress", token = NULL, response_handler = NULL) {
   stopifnot(
     is.character(path),
     length(path) == 1L,
     nchar(path) > 0,
-    startsWith(path, "/")
+    startsWith(path, "/"),
+    is.null(response_handler) || is.function(response_handler)
   )
+
+  # Register custom response handler if provided
+  if (!is.null(response_handler)) {
+    .shinypayload_state$config$response_handlers[[path]] <- response_handler
+  }
 
   # Create the UI function that handles both GET and POST
   ui_function <- function(req) {
+    config <- .shinypayload_state$config
+
+    # v0.3.0: Handle CORS preflight requests
+    if (config$cors_enabled && identical(req$REQUEST_METHOD, "OPTIONS")) {
+      return(.create_cors_preflight_response())
+    }
+
+    # v0.3.0: Handle health check endpoint
+    if (config$health_enabled && identical(req$PATH_INFO, config$health_path)) {
+      return(.create_health_response())
+    }
+
     # Handle POST requests to the specified path
     if (identical(req$REQUEST_METHOD, "POST") && identical(req$PATH_INFO, path)) {
+      # Increment request counter
+      .shinypayload_state$request_count <- .shinypayload_state$request_count + 1L
+
+      # v0.3.0: Generate correlation ID
+      correlation_id <- .get_correlation_id(req)
+
+      .log_message("INFO", sprintf("Received POST request to %s", path),
+        path = path, req = req, correlation_id = correlation_id
+      )
+
       # Security checks
       # 1. IP restrictions
       if (!.check_ip_restrictions(req)) {
-        return(shiny::httpResponse(
-          status = 403L,
-          content_type = "application/json",
-          content = '{"error":"Forbidden - IP not allowed"}'
+        .log_message("WARN", "Request blocked - IP not allowed",
+          path = path, req = req, correlation_id = correlation_id
+        )
+        return(.create_error_response(403L, "Forbidden - IP not allowed",
+          correlation_id = correlation_id
         ))
       }
 
       # 2. Rate limiting
       if (!.check_rate_limit(req)) {
-        return(shiny::httpResponse(
-          status = 429L,
-          content_type = "application/json",
-          content = '{"error":"Too Many Requests"}'
+        .log_message("WARN", "Request blocked - Rate limit exceeded",
+          path = path, req = req, correlation_id = correlation_id
+        )
+        return(.create_error_response(429L, "Too Many Requests",
+          correlation_id = correlation_id
         ))
       }
 
       # 3. Token authentication
       if (!.check_auth(req, token)) {
-        return(shiny::httpResponse(
-          status = 401L,
-          content_type = "application/json",
-          content = '{"error":"Unauthorized"}'
+        .log_message("WARN", "Request blocked - Authentication failed",
+          path = path, req = req, correlation_id = correlation_id
+        )
+        return(.create_error_response(401L, "Unauthorized",
+          correlation_id = correlation_id
         ))
       }
 
@@ -558,19 +1114,20 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
       }
 
       # 4. HMAC signature validation (if configured)
-      config <- .shinypayload_state$config
       if (!is.null(config$hmac_secret) && config$hmac_secret != "") {
         if (!.check_hmac_signature(req, body_raw, config$hmac_secret)) {
-          return(shiny::httpResponse(
-            status = 401L,
-            content_type = "application/json",
-            content = '{"error":"Invalid signature"}'
+          .log_message("WARN", "Request blocked - Invalid HMAC signature",
+            path = path, req = req, correlation_id = correlation_id
+          )
+          return(.create_error_response(401L, "Invalid signature",
+            correlation_id = correlation_id
           ))
         }
       }
 
       # Parse the body
       payload <- NULL
+      content_type <- ""
       if (length(body_raw) > 0) {
         body_text <- rawToChar(body_raw)
 
@@ -586,15 +1143,36 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
               jsonlite::fromJSON(body_text, simplifyVector = FALSE)
             } else if (content_type == "application/x-www-form-urlencoded") {
               shiny::parseQueryString(body_text)
+            } else if (startsWith(content_type, "multipart/form-data")) {
+              .parse_multipart_content(req, body_raw)
             } else {
               # Try JSON first, fallback to text
-              jsonlite::fromJSON(body_text, simplifyVector = FALSE)
+              tryCatch(
+                jsonlite::fromJSON(body_text, simplifyVector = FALSE),
+                error = function(e) body_text
+              )
             }
           },
           error = function(e) {
+            .log_message("WARN", paste("Payload parsing failed:", e$message),
+              path = path, req = req, correlation_id = correlation_id
+            )
             body_text
           }
         )
+      }
+
+      # v0.3.0: JSON Schema validation
+      if (!is.null(config$json_schemas[[path]])) {
+        validation_result <- .validate_json_schema(payload, path)
+        if (!validation_result$valid) {
+          .log_message("WARN", "Request blocked - Schema validation failed",
+            path = path, req = req, correlation_id = correlation_id
+          )
+          return(.create_error_response(400L, "Validation failed",
+            details = validation_result$errors, correlation_id = correlation_id
+          ))
+        }
       }
 
       # Create metadata
@@ -605,27 +1183,28 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
         method = req$REQUEST_METHOD %||% "POST",
         content_type = content_type,
         headers = req$HEADERS %||% list(),
-        query_string = req$QUERY_STRING
+        query_string = req$QUERY_STRING,
+        correlation_id = correlation_id
       )
 
       # Store the payload
       .store_payload(path, list(payload = payload, meta = meta))
 
-      # Return success response
-      return(shiny::httpResponse(
-        status = 200L,
-        content_type = "application/json",
-        content = '{"ok":true}'
-      ))
+      .log_message("INFO", sprintf("Payload stored successfully for %s", path),
+        path = path, req = req, correlation_id = correlation_id
+      )
+
+      # v0.3.0: Return custom response if handler is configured
+      return(.create_custom_response(path, payload, req, correlation_id))
     }
 
     # Handle regular UI requests
     if (is.function(base_ui)) {
       # Check if base_ui accepts a request parameter
       if (length(formals(base_ui)) >= 1) {
-        base_ui(req)
+        return(base_ui(req))
       } else {
-        base_ui()
+        return(base_ui())
       }
     }
 
@@ -634,7 +1213,7 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
   }
 
   # CRITICAL: Tell Shiny this function handles POST requests
-  attr(ui_function, "http_methods_supported") <- c("GET", "POST")
+  attr(ui_function, "http_methods_supported") <- c("GET", "POST", "OPTIONS")
 
   ui_function
 }
@@ -642,7 +1221,8 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
 #' Enhanced HTTP methods support for multiple endpoints
 #' @param base_ui The original UI (tagList, fluidPage, or a function(req) returning UI)
 #' @param endpoints A list of endpoint configurations. Each element should be a list with:
-#'   \code{path}, \code{methods} (character vector), and optionally \code{token}
+#'   \code{path}, \code{methods} (character vector), optionally \code{token}, and
+#'   optionally \code{response_handler} (function)
 #' @return A function that takes a request object and returns either the regular UI
 #'   (for GET requests) or an HTTP response (for other HTTP methods). This function
 #'   should be passed to shinyApp() as the ui parameter.
@@ -652,7 +1232,13 @@ payload_ui <- function(base_ui, path = "/ingress", token = NULL) {
 #'   endpoints <- list(
 #'     list(path = "/api/data", methods = c("POST", "PUT"), token = "secret"),
 #'     list(path = "/api/delete", methods = "DELETE", token = "admin-token"),
-#'     list(path = "/webhooks", methods = c("POST", "PATCH"))
+#'     list(
+#'       path = "/webhooks",
+#'       methods = c("POST", "PATCH"),
+#'       response_handler = function(payload, req) {
+#'         list(status = 202L, body = list(queued = TRUE))
+#'       }
+#'     )
 #'   )
 #'   ui <- payload_methods(fluidPage(h1("My App")), endpoints)
 #'   shinyApp(ui, server, uiPattern = ".*")
@@ -682,38 +1268,68 @@ payload_methods <- function(base_ui, endpoints) {
     if (length(invalid_methods) > 0) {
       stop("Invalid HTTP methods: ", paste(invalid_methods, collapse = ", "))
     }
+
+    # Register custom response handler if provided
+    if (!is.null(ep$response_handler) && is.function(ep$response_handler)) {
+      .shinypayload_state$config$response_handlers[[ep$path]] <- ep$response_handler
+    }
   }
 
   # Create the UI function that handles multiple HTTP methods
   ui_function <- function(req) {
+    config <- .shinypayload_state$config
+
+    # v0.3.0: Handle CORS preflight requests
+    if (config$cors_enabled && identical(req$REQUEST_METHOD, "OPTIONS")) {
+      return(.create_cors_preflight_response())
+    }
+
+    # v0.3.0: Handle health check endpoint
+    if (config$health_enabled && identical(req$PATH_INFO, config$health_path)) {
+      return(.create_health_response())
+    }
+
     # Check if this request matches any configured endpoint
     for (ep in endpoints) {
       if (identical(req$PATH_INFO, ep$path) && req$REQUEST_METHOD %in% ep$methods) {
+        # Increment request counter
+        .shinypayload_state$request_count <- .shinypayload_state$request_count + 1L
+
+        # v0.3.0: Generate correlation ID
+        correlation_id <- .get_correlation_id(req)
+
+        .log_message("INFO", sprintf("Received %s request to %s", req$REQUEST_METHOD, ep$path),
+          path = ep$path, req = req, correlation_id = correlation_id
+        )
+
         # Security checks
         # 1. IP restrictions
         if (!.check_ip_restrictions(req)) {
-          return(shiny::httpResponse(
-            status = 403L,
-            content_type = "application/json",
-            content = '{"error":"Forbidden - IP not allowed"}'
+          .log_message("WARN", "Request blocked - IP not allowed",
+            path = ep$path, req = req, correlation_id = correlation_id
+          )
+          return(.create_error_response(403L, "Forbidden - IP not allowed",
+            correlation_id = correlation_id
           ))
         }
 
         # 2. Rate limiting
         if (!.check_rate_limit(req)) {
-          return(shiny::httpResponse(
-            status = 429L,
-            content_type = "application/json",
-            content = '{"error":"Too Many Requests"}'
+          .log_message("WARN", "Request blocked - Rate limit exceeded",
+            path = ep$path, req = req, correlation_id = correlation_id
+          )
+          return(.create_error_response(429L, "Too Many Requests",
+            correlation_id = correlation_id
           ))
         }
 
         # 3. Token authentication
         if (!.check_auth(req, ep$token)) {
-          return(shiny::httpResponse(
-            status = 401L,
-            content_type = "application/json",
-            content = '{"error":"Unauthorized"}'
+          .log_message("WARN", "Request blocked - Authentication failed",
+            path = ep$path, req = req, correlation_id = correlation_id
+          )
+          return(.create_error_response(401L, "Unauthorized",
+            correlation_id = correlation_id
           ))
         }
 
@@ -728,19 +1344,20 @@ payload_methods <- function(base_ui, endpoints) {
         }
 
         # 4. HMAC signature validation (if configured)
-        config <- .shinypayload_state$config
         if (!is.null(config$hmac_secret) && config$hmac_secret != "") {
           if (!.check_hmac_signature(req, body_raw, config$hmac_secret)) {
-            return(shiny::httpResponse(
-              status = 401L,
-              content_type = "application/json",
-              content = '{"error":"Invalid signature"}'
+            .log_message("WARN", "Request blocked - Invalid HMAC signature",
+              path = ep$path, req = req, correlation_id = correlation_id
+            )
+            return(.create_error_response(401L, "Invalid signature",
+              correlation_id = correlation_id
             ))
           }
         }
 
         # Parse the body
         payload <- NULL
+        content_type <- ""
         if (length(body_raw) > 0) {
           body_text <- rawToChar(body_raw)
 
@@ -756,15 +1373,36 @@ payload_methods <- function(base_ui, endpoints) {
                 jsonlite::fromJSON(body_text, simplifyVector = FALSE)
               } else if (content_type == "application/x-www-form-urlencoded") {
                 shiny::parseQueryString(body_text)
+              } else if (startsWith(content_type, "multipart/form-data")) {
+                .parse_multipart_content(req, body_raw)
               } else {
                 # Try JSON first, fallback to text
-                jsonlite::fromJSON(body_text, simplifyVector = FALSE)
+                tryCatch(
+                  jsonlite::fromJSON(body_text, simplifyVector = FALSE),
+                  error = function(e) body_text
+                )
               }
             },
             error = function(e) {
+              .log_message("WARN", paste("Payload parsing failed:", e$message),
+                path = ep$path, req = req, correlation_id = correlation_id
+              )
               body_text
             }
           )
+        }
+
+        # v0.3.0: JSON Schema validation
+        if (!is.null(config$json_schemas[[ep$path]])) {
+          validation_result <- .validate_json_schema(payload, ep$path)
+          if (!validation_result$valid) {
+            .log_message("WARN", "Request blocked - Schema validation failed",
+              path = ep$path, req = req, correlation_id = correlation_id
+            )
+            return(.create_error_response(400L, "Validation failed",
+              details = validation_result$errors, correlation_id = correlation_id
+            ))
+          }
         }
 
         # Create metadata
@@ -773,30 +1411,30 @@ payload_methods <- function(base_ui, endpoints) {
           remote_addr = req$REMOTE_ADDR %||% "unknown",
           path = req$PATH_INFO %||% ep$path,
           method = req$REQUEST_METHOD,
-          content_type = req$HTTP_CONTENT_TYPE %||% req$CONTENT_TYPE %||% "unknown",
+          content_type = content_type,
           headers = req$HEADERS %||% list(),
-          query_string = req$QUERY_STRING
+          query_string = req$QUERY_STRING,
+          correlation_id = correlation_id
         )
 
         # Store the payload
         .store_payload(ep$path, list(payload = payload, meta = meta))
 
-        # Return appropriate response based on method
-        status_code <- if (req$REQUEST_METHOD == "POST") 201L else 200L
-        return(shiny::httpResponse(
-          status = status_code,
-          content_type = "application/json",
-          content = '{"ok":true}'
-        ))
+        .log_message("INFO", sprintf("Payload stored successfully for %s", ep$path),
+          path = ep$path, req = req, correlation_id = correlation_id
+        )
+
+        # v0.3.0: Return custom response if handler is configured
+        return(.create_custom_response(ep$path, payload, req, correlation_id))
       }
     }
 
     # Handle regular UI requests (no endpoint matched)
     if (is.function(base_ui)) {
       if (length(formals(base_ui)) >= 1) {
-        base_ui(req)
+        return(base_ui(req))
       } else {
-        base_ui()
+        return(base_ui())
       }
     }
 
@@ -805,7 +1443,7 @@ payload_methods <- function(base_ui, endpoints) {
   }
 
   # Extract all supported methods from endpoints
-  all_methods <- unique(c("GET", unlist(lapply(endpoints, function(ep) ep$methods))))
+  all_methods <- unique(c("GET", "OPTIONS", unlist(lapply(endpoints, function(ep) ep$methods))))
   attr(ui_function, "http_methods_supported") <- all_methods
 
   ui_function
@@ -874,6 +1512,8 @@ setup_payload_endpoint <- function(path = "/ingress", session, token = NULL) {
 #' @param path The URL path used in payload_ui() (default "/ingress")
 #' @param session The Shiny session object
 #' @param intervalMillis Polling interval in milliseconds (default 300)
+#' @param scope Data scope: "global" (shared across sessions, default) or
+#'   "session" (isolated per session)
 #' @return A reactive expression (class "reactive") that returns a list with two
 #'   elements when new data is available: \code{payload} (the parsed request body)
 #'   and \code{meta} (metadata including timestamp, remote address, headers, etc.),
@@ -882,10 +1522,14 @@ setup_payload_endpoint <- function(path = "/ingress", session, token = NULL) {
 #' @examples
 #' if (interactive()) {
 #'   server <- function(input, output, session) {
-#'     latest_data <- payload_last("/data", session)
+#'     # Global scope - data shared across all sessions
+#'     global_data <- payload_last("/data", session)
 #'
-#'     observeEvent(latest_data(), {
-#'       data <- latest_data()
+#'     # Session scope - data isolated to this session only
+#'     session_data <- payload_last("/user-data", session, scope = "session")
+#'
+#'     observeEvent(global_data(), {
+#'       data <- global_data()
 #'       if (!is.null(data)) {
 #'         print(data$payload)
 #'         print(data$meta$timestamp)
@@ -893,7 +1537,10 @@ setup_payload_endpoint <- function(path = "/ingress", session, token = NULL) {
 #'     })
 #'   }
 #' }
-payload_last <- function(path = "/ingress", session, intervalMillis = 300) {
+payload_last <- function(path = "/ingress", session, intervalMillis = 300,
+                         scope = c("global", "session")) {
+  scope <- match.arg(scope)
+
   stopifnot(
     !missing(session),
     is.character(path),
@@ -902,12 +1549,25 @@ payload_last <- function(path = "/ingress", session, intervalMillis = 300) {
     intervalMillis > 0
   )
 
-  shiny::reactivePoll(
-    intervalMillis = intervalMillis,
-    session = session,
-    checkFunc = function() .get_version(path),
-    valueFunc = function() .get_payload_data(path)
-  )
+  if (scope == "global") {
+    # Global scope - shared across all sessions
+    shiny::reactivePoll(
+      intervalMillis = intervalMillis,
+      session = session,
+      checkFunc = function() .get_version(path),
+      valueFunc = function() .get_payload_data(path)
+    )
+  } else {
+    # Session scope - isolated to this session
+    session_id <- session$token %||% "default"
+
+    shiny::reactivePoll(
+      intervalMillis = intervalMillis,
+      session = session,
+      checkFunc = function() .get_session_version(path, session_id),
+      valueFunc = function() .get_session_payload_data(path, session_id)
+    )
+  }
 }
 
 #' Generate the absolute URL for the payload endpoint
@@ -1913,6 +2573,627 @@ payload_system_status <- function() {
       r_version = R.version.string,
       platform = R.version$platform,
       timestamp = Sys.time()
+    ),
+
+    # v0.3.0: Additional status information
+    cors = list(
+      enabled = config$cors_enabled,
+      origins = config$cors_origins
+    ),
+    health = list(
+      enabled = config$health_enabled,
+      path = config$health_path
+    ),
+    queue = list(
+      enabled = config$queue_enabled,
+      pending = length(ls(envir = .shinypayload_state$queue)),
+      dead_letter = length(ls(envir = .shinypayload_state$dead_letter))
+    ),
+    request_count = .shinypayload_state$request_count,
+    uptime_seconds = as.numeric(difftime(Sys.time(), .shinypayload_state$startup_time, units = "secs"))
+  )
+}
+
+# =============================================================================
+# v0.3.0: CORS Configuration
+# =============================================================================
+
+#' Configure Cross-Origin Resource Sharing (CORS)
+#' @param enabled Enable or disable CORS (default FALSE)
+#' @param origins Allowed origins. Use "*" for any origin, or provide a character
+#'   vector of specific domains (default "*")
+#' @param methods HTTP methods to allow (default includes common methods)
+#' @param headers Headers to allow in requests (default includes common headers)
+#' @param credentials Allow credentials in cross-origin requests (default FALSE)
+#' @param max_age Maximum time (in seconds) browsers should cache preflight results
+#'   (default 86400 = 24 hours)
+#' @return Invisibly returns TRUE, called for side effects
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Enable CORS for all origins
+#'   payload_cors_config(enabled = TRUE)
+#'
+#'   # Restrict to specific origins
+#'   payload_cors_config(
+#'     enabled = TRUE,
+#'     origins = c("https://myapp.com", "https://staging.myapp.com"),
+#'     credentials = TRUE
+#'   )
+#'
+#'   # Disable CORS
+#'   payload_cors_config(enabled = FALSE)
+#' }
+payload_cors_config <- function(enabled = FALSE,
+                                origins = "*",
+                                methods = c("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
+                                headers = c("Content-Type", "Authorization", "X-Requested-With", "X-Request-ID"),
+                                credentials = FALSE,
+                                max_age = 86400) {
+  stopifnot(
+    is.logical(enabled),
+    is.character(origins),
+    is.character(methods),
+    is.character(headers),
+    is.logical(credentials),
+    is.numeric(max_age),
+    max_age > 0
+  )
+
+  config <- .shinypayload_state$config
+  config$cors_enabled <- enabled
+  config$cors_origins <- origins
+  config$cors_methods <- methods
+  config$cors_headers <- headers
+  config$cors_credentials <- credentials
+  config$cors_max_age <- as.integer(max_age)
+  .shinypayload_state$config <- config
+
+  .log_message("INFO", sprintf("CORS configuration updated: enabled=%s", enabled))
+
+  invisible(TRUE)
+}
+
+#' Get current CORS configuration
+#' @return A list containing current CORS settings
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   status <- payload_cors_status()
+#'   cat("CORS enabled:", status$enabled, "\n")
+#'   cat("Allowed origins:", paste(status$origins, collapse = ", "), "\n")
+#' }
+payload_cors_status <- function() {
+  config <- .shinypayload_state$config
+
+  list(
+    enabled = config$cors_enabled,
+    origins = config$cors_origins,
+    methods = config$cors_methods,
+    headers = config$cors_headers,
+    credentials = config$cors_credentials,
+    max_age = config$cors_max_age
+  )
+}
+
+# =============================================================================
+# v0.3.0: Health Check Configuration
+# =============================================================================
+
+#' Configure health check endpoint
+#' @param enabled Enable or disable health check endpoint (default TRUE)
+#' @param path URL path for health check (default "/health")
+#' @return Invisibly returns TRUE, called for side effects
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Use custom health check path
+#'   payload_health_config(enabled = TRUE, path = "/api/health")
+#'
+#'   # Disable health checks
+#'   payload_health_config(enabled = FALSE)
+#' }
+payload_health_config <- function(enabled = TRUE, path = "/health") {
+  stopifnot(
+    is.logical(enabled),
+    is.character(path),
+    length(path) == 1L,
+    startsWith(path, "/")
+  )
+
+  config <- .shinypayload_state$config
+  config$health_enabled <- enabled
+  config$health_path <- path
+  .shinypayload_state$config <- config
+
+  .log_message("INFO", sprintf("Health check configuration updated: enabled=%s, path=%s", enabled, path))
+
+  invisible(TRUE)
+}
+
+#' Get current health check configuration
+#' @return A list containing current health check settings
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   status <- payload_health_status()
+#'   cat("Health check enabled:", status$enabled, "\n")
+#'   cat("Health check path:", status$path, "\n")
+#' }
+payload_health_status <- function() {
+  config <- .shinypayload_state$config
+
+  list(
+    enabled = config$health_enabled,
+    path = config$health_path
+  )
+}
+
+# =============================================================================
+# v0.3.0: Custom Response Configuration
+# =============================================================================
+
+#' Configure custom response handler for an endpoint
+#' @param path The URL path to configure response handler for
+#' @param handler A function that accepts (payload, req) and returns a list with:
+#'   \code{status} (HTTP status code), \code{body} (response body),
+#'   \code{content_type} (MIME type), \code{headers} (additional headers).
+#'   Pass NULL to remove the handler.
+#' @return Invisibly returns TRUE, called for side effects
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Set custom response handler
+#'   payload_response_config("/api/process", function(payload, req) {
+#'     list(
+#'       status = 201L,
+#'       body = list(
+#'         received = TRUE,
+#'         id = paste0("item_", sample(10000:99999, 1)),
+#'         timestamp = Sys.time()
+#'       )
+#'     )
+#'   })
+#'
+#'   # Remove handler (use default response)
+#'   payload_response_config("/api/process", NULL)
+#' }
+payload_response_config <- function(path, handler) {
+  stopifnot(
+    is.character(path),
+    length(path) == 1L,
+    startsWith(path, "/"),
+    is.null(handler) || is.function(handler)
+  )
+
+  config <- .shinypayload_state$config
+
+  if (is.null(handler)) {
+    config$response_handlers[[path]] <- NULL
+    .log_message("INFO", sprintf("Response handler removed for %s", path))
+  } else {
+    config$response_handlers[[path]] <- handler
+    .log_message("INFO", sprintf("Response handler configured for %s", path))
+  }
+
+  .shinypayload_state$config <- config
+
+  invisible(TRUE)
+}
+
+#' Get current response handlers
+#' @return A list of configured response handlers by path
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   status <- payload_response_status()
+#'   cat("Configured handlers for:", paste(names(status$handlers), collapse = ", "), "\n")
+#' }
+payload_response_status <- function() {
+  config <- .shinypayload_state$config
+
+  handlers <- config$response_handlers
+  paths_with_handlers <- names(handlers)[!sapply(handlers, is.null)]
+
+  list(
+    handlers = handlers,
+    configured_paths = paths_with_handlers,
+    count = length(paths_with_handlers)
+  )
+}
+
+# =============================================================================
+# v0.3.0: JSON Schema Validation
+# =============================================================================
+
+#' Configure JSON Schema validation for an endpoint
+#' @param path The URL path to configure schema validation for
+#' @param schema JSON Schema as a character string, list, or path to a schema file.
+#'   Pass NULL to remove schema validation.
+#' @return Invisibly returns TRUE, called for side effects
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Set JSON Schema for validation
+#'   payload_schema_config("/api/data", '{
+#'     "type": "object",
+#'     "required": ["name", "value"],
+#'     "properties": {
+#'       "name": {"type": "string"},
+#'       "value": {"type": "number"}
+#'     }
+#'   }')
+#'
+#'   # Remove schema validation
+#'   payload_schema_config("/api/data", NULL)
+#' }
+payload_schema_config <- function(path, schema) {
+  stopifnot(
+    is.character(path),
+    length(path) == 1L,
+    startsWith(path, "/")
+  )
+
+  config <- .shinypayload_state$config
+
+  if (is.null(schema)) {
+    config$json_schemas[[path]] <- NULL
+    .log_message("INFO", sprintf("JSON Schema removed for %s", path))
+  } else {
+    # Handle different schema input types
+    if (is.character(schema) && length(schema) == 1L && file.exists(schema)) {
+      # Read schema from file
+      schema <- paste(readLines(schema, warn = FALSE), collapse = "\n")
+    } else if (is.list(schema)) {
+      # Convert list to JSON
+      schema <- jsonlite::toJSON(schema, auto_unbox = TRUE)
+    }
+
+    config$json_schemas[[path]] <- schema
+    .log_message("INFO", sprintf("JSON Schema configured for %s", path))
+  }
+
+  .shinypayload_state$config <- config
+
+  invisible(TRUE)
+}
+
+#' Get current JSON Schema configurations
+#' @return A list of configured schemas by path
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   status <- payload_schema_status()
+#'   cat("Schemas configured for:", paste(status$configured_paths, collapse = ", "), "\n")
+#' }
+payload_schema_status <- function() {
+  config <- .shinypayload_state$config
+
+  schemas <- config$json_schemas
+  paths_with_schemas <- names(schemas)[!sapply(schemas, is.null)]
+
+  list(
+    schemas = schemas,
+    configured_paths = paths_with_schemas,
+    count = length(paths_with_schemas)
+  )
+}
+
+# =============================================================================
+# v0.3.0: Async Queue Processing
+# =============================================================================
+
+#' Configure async queue processing
+#' @param enabled Enable or disable queue processing (default FALSE)
+#' @param max_size Maximum queue size (default 1000)
+#' @param retry_attempts Number of retry attempts for failed processing (default 3)
+#' @param retry_delay_ms Delay between retries in milliseconds (default 1000)
+#' @return Invisibly returns TRUE, called for side effects
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Enable queue with custom settings
+#'   payload_queue_config(
+#'     enabled = TRUE,
+#'     max_size = 500,
+#'     retry_attempts = 5
+#'   )
+#' }
+payload_queue_config <- function(enabled = FALSE,
+                                 max_size = 1000,
+                                 retry_attempts = 3,
+                                 retry_delay_ms = 1000) {
+  stopifnot(
+    is.logical(enabled),
+    is.numeric(max_size),
+    max_size > 0,
+    is.numeric(retry_attempts),
+    retry_attempts >= 0,
+    is.numeric(retry_delay_ms),
+    retry_delay_ms > 0
+  )
+
+  config <- .shinypayload_state$config
+  config$queue_enabled <- enabled
+  config$queue_max_size <- as.integer(max_size)
+  config$queue_retry_attempts <- as.integer(retry_attempts)
+  config$queue_retry_delay_ms <- as.integer(retry_delay_ms)
+  .shinypayload_state$config <- config
+
+  .log_message("INFO", sprintf("Queue configuration updated: enabled=%s", enabled))
+
+  invisible(TRUE)
+}
+
+#' Enqueue a payload for async processing
+#' @param path The endpoint path this payload is associated with
+#' @param payload The payload data to queue
+#' @param priority Queue priority: "high", "normal", or "low" (default "normal")
+#' @param correlation_id Optional correlation ID for tracking
+#' @return A list with success status and queue_id if successful
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Enqueue a payload
+#'   result <- payload_queue("/api/process", list(data = "test"))
+#'   if (result$success) {
+#'     cat("Queued with ID:", result$queue_id, "\n")
+#'   }
+#' }
+payload_queue <- function(path, payload, priority = c("normal", "high", "low"),
+                          correlation_id = NULL) {
+  priority <- match.arg(priority)
+
+  stopifnot(
+    is.character(path),
+    length(path) == 1L
+  )
+
+  config <- .shinypayload_state$config
+
+  if (!config$queue_enabled) {
+    return(list(success = FALSE, reason = "Queue processing is disabled"))
+  }
+
+  if (is.null(correlation_id)) {
+    correlation_id <- .generate_correlation_id()
+  }
+
+  result <- .enqueue_payload(path, payload, correlation_id, priority)
+
+  if (result$success) {
+    .log_message("INFO", sprintf("Payload queued for %s with ID %s", path, result$queue_id),
+      path = path, correlation_id = correlation_id
     )
+  }
+
+  result
+}
+
+#' Process queued payloads
+#' @param processor A function that accepts (path, payload, meta) and processes it.
+#'   Should return TRUE on success, FALSE on failure.
+#' @param max_items Maximum number of items to process (default 10)
+#' @return A list with processing results
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Process queued items
+#'   result <- payload_queue_process(function(path, payload, meta) {
+#'     cat("Processing payload for", path, "\n")
+#'     # Your processing logic here
+#'     TRUE  # Return TRUE on success
+#'   })
+#'   cat("Processed:", result$processed, "items\n")
+#' }
+payload_queue_process <- function(processor, max_items = 10) {
+  stopifnot(
+    is.function(processor),
+    is.numeric(max_items),
+    max_items > 0
+  )
+
+  config <- .shinypayload_state$config
+
+  if (!config$queue_enabled) {
+    return(list(processed = 0, failed = 0, reason = "Queue processing is disabled"))
+  }
+
+  processed <- 0
+  failed <- 0
+
+  for (i in seq_len(max_items)) {
+    item <- .dequeue_payload()
+
+    if (is.null(item)) {
+      break  # No more items
+    }
+
+    .mark_queue_item_processing(item$id)
+
+    success <- tryCatch(
+      {
+        meta <- list(
+          queue_id = item$id,
+          correlation_id = item$correlation_id,
+          enqueued_at = item$enqueued_at,
+          attempts = item$attempts
+        )
+        processor(item$path, item$payload, meta)
+      },
+      error = function(e) {
+        .log_message("ERROR", paste("Queue processing failed:", e$message),
+          path = item$path, correlation_id = item$correlation_id
+        )
+        FALSE
+      }
+    )
+
+    if (isTRUE(success)) {
+      .mark_queue_item_complete(item$id)
+      processed <- processed + 1
+      .log_message("INFO", sprintf("Queue item %s processed successfully", item$id),
+        path = item$path, correlation_id = item$correlation_id
+      )
+    } else {
+      .mark_queue_item_failed(item$id, "Processing returned FALSE or error")
+      failed <- failed + 1
+    }
+  }
+
+  list(
+    processed = processed,
+    failed = failed,
+    remaining = length(ls(envir = .shinypayload_state$queue))
+  )
+}
+
+#' Get queue status and statistics
+#' @return A list containing queue statistics
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   status <- payload_queue_status()
+#'   cat("Pending items:", status$pending, "\n")
+#'   cat("Dead letter items:", status$dead_letter, "\n")
+#' }
+payload_queue_status <- function() {
+  config <- .shinypayload_state$config
+
+  queue_items <- ls(envir = .shinypayload_state$queue)
+  dead_letter_items <- ls(envir = .shinypayload_state$dead_letter)
+
+  # Count by status
+  pending <- 0
+  processing <- 0
+
+  for (key in queue_items) {
+    item <- get(key, envir = .shinypayload_state$queue)
+    if (item$status == "pending") pending <- pending + 1
+    if (item$status == "processing") processing <- processing + 1
+  }
+
+  list(
+    enabled = config$queue_enabled,
+    pending = pending,
+    processing = processing,
+    dead_letter = length(dead_letter_items),
+    max_size = config$queue_max_size,
+    retry_attempts = config$queue_retry_attempts
+  )
+}
+
+#' Clear queue items
+#' @param include_dead_letter Also clear dead letter queue (default FALSE)
+#' @return Number of items cleared
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Clear pending queue items
+#'   cleared <- payload_queue_clear()
+#'
+#'   # Clear everything including dead letter
+#'   cleared <- payload_queue_clear(include_dead_letter = TRUE)
+#' }
+payload_queue_clear <- function(include_dead_letter = FALSE) {
+  queue_items <- ls(envir = .shinypayload_state$queue)
+  count <- length(queue_items)
+
+  if (count > 0) {
+    rm(list = queue_items, envir = .shinypayload_state$queue)
+  }
+
+  if (include_dead_letter) {
+    dead_items <- ls(envir = .shinypayload_state$dead_letter)
+    count <- count + length(dead_items)
+    if (length(dead_items) > 0) {
+      rm(list = dead_items, envir = .shinypayload_state$dead_letter)
+    }
+  }
+
+  .log_message("INFO", sprintf("Queue cleared: %d items removed", count))
+
+  count
+}
+
+#' Get dead letter queue items
+#' @param limit Maximum number of items to return (default 50)
+#' @return A list of failed queue items
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   dead_items <- payload_queue_dead_letter()
+#'   for (item in dead_items) {
+#'     cat("Failed item:", item$id, "Error:", item$error, "\n")
+#'   }
+#' }
+payload_queue_dead_letter <- function(limit = 50) {
+  stopifnot(
+    is.numeric(limit),
+    limit > 0
+  )
+
+  dead_keys <- ls(envir = .shinypayload_state$dead_letter)
+
+  if (length(dead_keys) == 0) {
+    return(list())
+  }
+
+  items <- lapply(dead_keys, function(key) {
+    get(key, envir = .shinypayload_state$dead_letter)
+  })
+
+  # Sort by failed_at time
+  items <- items[order(sapply(items, function(x) as.numeric(x$failed_at)), decreasing = TRUE)]
+
+  if (length(items) > limit) {
+    items <- items[1:limit]
+  }
+
+  items
+}
+
+# =============================================================================
+# v0.3.0: Multipart Upload Configuration
+# =============================================================================
+
+#' Configure multipart/file upload settings
+#' @param max_size Maximum upload size in bytes (default 10MB)
+#' @return Invisibly returns TRUE, called for side effects
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   # Allow uploads up to 50MB
+#'   payload_upload_config(max_size = 50 * 1024 * 1024)
+#' }
+payload_upload_config <- function(max_size = 10 * 1024 * 1024) {
+  stopifnot(
+    is.numeric(max_size),
+    max_size > 0
+  )
+
+  config <- .shinypayload_state$config
+  config$max_upload_size <- as.numeric(max_size)
+  .shinypayload_state$config <- config
+
+  .log_message("INFO", sprintf("Upload configuration updated: max_size=%d bytes", max_size))
+
+  invisible(TRUE)
+}
+
+#' Get current upload configuration
+#' @return A list containing upload settings
+#' @export
+#' @examples
+#' if (interactive()) {
+#'   status <- payload_upload_status()
+#'   cat("Max upload size:", status$max_size_mb, "MB\n")
+#' }
+payload_upload_status <- function() {
+  config <- .shinypayload_state$config
+
+  list(
+    max_size = config$max_upload_size,
+    max_size_mb = round(config$max_upload_size / 1024 / 1024, 2)
   )
 }

@@ -22,4 +22,26 @@ export(payload_debug_status)
 export(payload_logs)
 export(payload_logs_clear)
 export(payload_system_status)
+# v0.3.0: CORS
+export(payload_cors_config)
+export(payload_cors_status)
+# v0.3.0: Health Check
+export(payload_health_config)
+export(payload_health_status)
+# v0.3.0: Custom Response
+export(payload_response_config)
+export(payload_response_status)
+# v0.3.0: JSON Schema Validation
+export(payload_schema_config)
+export(payload_schema_status)
+# v0.3.0: Async Queue
+export(payload_queue_config)
+export(payload_queue)
+export(payload_queue_process)
+export(payload_queue_status)
+export(payload_queue_clear)
+export(payload_queue_dead_letter)
+# v0.3.0: Upload Configuration
+export(payload_upload_config)
+export(payload_upload_status)
 importFrom("utils", "object.size")

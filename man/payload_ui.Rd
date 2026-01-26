@@ -4,7 +4,7 @@
 \alias{payload_ui}
 \title{Wrap an existing UI with an integrated POST handler on the same port}
 \usage{
-payload_ui(base_ui, path = "/ingress", token = NULL)
+payload_ui(base_ui, path = "/ingress", token = NULL, response_handler = NULL)
 }
 \arguments{
 \item{base_ui}{The original UI (tagList, fluidPage, or a function(req) returning UI)}
@@ -12,6 +12,9 @@ payload_ui(base_ui, path = "/ingress", token = NULL)
 \item{path}{The URL path to handle POST requests (default "/ingress")}
 
 \item{token}{Optional authentication token for POST requests}
+
+\item{response_handler}{Optional function to customize responses. Should accept (payload, req)
+and return a list with: status, body, content_type, headers (all optional)}
 }
 \value{
 A function that takes a request object and returns either the regular UI
@@ -29,5 +32,17 @@ if (interactive()) {
     token = "secret123"
   )
   shinyApp(ui, server, uiPattern = ".*")
+
+  # With custom response handler
+  ui <- payload_ui(
+    fluidPage(h1("My App")),
+    path = "/api/process",
+    response_handler = function(payload, req) {
+      list(
+        status = 201L,
+        body = list(received = TRUE, id = sample(10000:99999, 1))
+      )
+    }
+  )
 }
 }
